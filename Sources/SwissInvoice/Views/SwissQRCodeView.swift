@@ -1,0 +1,143 @@
+import SwiftUI
+import CoreImage.CIFilterBuiltins
+
+// MARK: - Swiss Cross Shape
+
+/// Draws a Swiss Cross (white cross on carrier square)
+/// per Swiss QR Bill specification (SIX, Version 2.x):
+///   QR code:              46 × 46 mm
+///   Carrier square:        7 ×  7 mm  → ratio: 7/46
+///   Cross bars (W × L):  1.5 × 4.5 mm relative to carrier square
+private struct SwissCrossShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let s = min(rect.width, rect.height)
+        let barWidth  = s * (1.5 / 7.0)
+        let barLength = s * (4.5 / 7.0)
+        let cx = rect.midX
+        let cy = rect.midY
+
+        var path = Path()
+        // Horizontal bar
+        path.addRect(CGRect(
+            x: cx - barLength / 2,
+            y: cy - barWidth / 2,
+            width: barLength,
+            height: barWidth
+        ))
+        // Vertical bar
+        path.addRect(CGRect(
+            x: cx - barWidth / 2,
+            y: cy - barLength / 2,
+            width: barWidth,
+            height: barLength
+        ))
+        return path
+    }
+}
+
+// MARK: - Swiss Cross Overlay
+
+/// QR code overlay with Swiss Cross per SIX specification.
+private struct SwissCrossOverlay: View {
+    // Per SIX Swiss QR Bill specification:
+    //   QR code size:    46 × 46 mm
+    //   Carrier square:   7 ×  7 mm
+    //   → ratio:          7 / 46 ≈ 0.1522
+    private let relativeSize: CGFloat = 7.0 / 46.0
+    // White border: ~0.6mm at 7mm carrier → 0.6/7 ≈ 0.0857
+    private let whiteBorderRatio: CGFloat = 0.6 / 7.0
+
+    var body: some View {
+        GeometryReader { geo in
+            let side = min(geo.size.width, geo.size.height) * relativeSize
+            let borderWidth = side * whiteBorderRatio
+            ZStack {
+                // White background square (rounded corners)
+                RoundedRectangle(cornerRadius: side * 0.1)
+                    .fill(Color.white)
+                    .frame(width: side + borderWidth * 2, height: side + borderWidth * 2)
+
+                // Red carrier square (7 × 7 mm) in Swiss Red (Pantone 485 C)
+                RoundedRectangle(cornerRadius: side * 0.1)
+                    .fill(Color(red: 1.0, green: 0.0, blue: 0.063))
+                    .frame(width: side, height: side)
+
+                // White Swiss Cross
+                SwissCrossShape()
+                    .fill(Color.white)
+                    .frame(width: side, height: side)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+// MARK: - SwissQRCodeView
+
+/// Renders a Swiss QR Bill QR code with Swiss Cross overlay.
+/// Can be initialized with a `SwissInvoice` or a raw payload string.
+public struct SwissQRCodeView: View {
+    private let payload: String
+    private let size: CGFloat
+
+    /// Creates a QR code view from a `SwissInvoice`.
+    public init(invoice: SwissInvoice, size: CGFloat = 200) {
+        self.payload = QRPayloadGenerator.generatePayload(for: invoice)
+        self.size = size
+    }
+
+    /// Creates a QR code view from a raw payload string.
+    public init(payload: String, size: CGFloat = 200) {
+        self.payload = payload
+        self.size = size
+    }
+
+    private var qrImage: UIImage? {
+        QRCodeGenerator.generateImage(payload: payload, size: size)
+    }
+
+    public var body: some View {
+        if let image = qrImage {
+            Image(uiImage: image)
+                .interpolation(.none)
+                .resizable()
+                .scaledToFit()
+                .frame(width: size, height: size)
+                .overlay(SwissCrossOverlay())
+        } else {
+            Image(systemName: "qrcode")
+                .resizable()
+                .scaledToFit()
+                .frame(width: size, height: size)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+#Preview {
+    SwissQRCodeView(
+        invoice: SwissInvoice(
+            creditor: Address(
+                name: "Robert Schneider AG",
+                street: "Rue du Lac",
+                houseNumber: "1268",
+                postalCode: "2501",
+                city: "Biel",
+                countryCode: "CH"
+            ),
+            iban: "CH4431999123000889012",
+            amount: Money(amount: 1949.75, currency: .chf),
+            debtor: Address(
+                name: "Pia-Maria Rutschmann-Schnyder",
+                street: "Grosse Marktgasse",
+                houseNumber: "28",
+                postalCode: "9400",
+                city: "Rorschach",
+                countryCode: "CH"
+            ),
+            reference: "210000000003139471430009017"
+        ),
+        size: 300
+    )
+}
+
