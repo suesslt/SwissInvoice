@@ -1,4 +1,5 @@
 import SwiftUI
+import QuickLook
 import SwissInvoice
 
 struct InvoiceFormView: View {
@@ -33,6 +34,7 @@ struct InvoiceFormView: View {
     @State private var invoiceDate = Date()
     @State private var additionalInfo = ""
     @State private var fontName = ""
+    @State private var fontSizeText = ""
 
     // Line Items
     @State private var lineItems: [LineItemEntry] = [
@@ -40,8 +42,8 @@ struct InvoiceFormView: View {
         LineItemEntry(description: "Travel expenses", quantity: "", unit: "", unitPrice: ""),
     ]
 
-    // Navigation
-    @State private var showPreview = false
+    // PDF preview
+    @State private var pdfURL: URL?
 
     // Font loading
     @State private var isLoadingFont = false
@@ -99,6 +101,8 @@ struct InvoiceFormView: View {
                 TextField("Font Name (e.g. Roboto, Open Sans)", text: $fontName)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
+                TextField("Font Size (default 12 pt)", text: $fontSizeText)
+                    .keyboardType(.decimalPad)
             }
 
             Section("Line Items") {
@@ -146,9 +150,7 @@ struct InvoiceFormView: View {
             }
         }
         .navigationTitle("Swiss Invoice Demo")
-        .navigationDestination(isPresented: $showPreview) {
-            InvoicePreviewView(invoice: buildInvoice())
-        }
+        .quickLookPreview($pdfURL)
     }
 
     private func generateInvoice() {
@@ -159,14 +161,14 @@ struct InvoiceFormView: View {
         // Empty font name — use default (Helvetica).
         guard !name.isEmpty else {
             resolvedFontName = nil
-            showPreview = true
+            showPDF()
             return
         }
 
         // System font already available — use it directly.
         if UIFont(name: name, size: 12) != nil {
             resolvedFontName = name
-            showPreview = true
+            showPDF()
             return
         }
 
@@ -181,8 +183,16 @@ struct InvoiceFormView: View {
                 resolvedFontName = nil
             }
             isLoadingFont = false
-            showPreview = true
+            showPDF()
         }
+    }
+
+    private func showPDF() {
+        let data = buildInvoice().pdfData()
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SwissInvoice.pdf")
+        try? data.write(to: url)
+        pdfURL = url
     }
 
     private func buildInvoice() -> SwissInvoice {
@@ -244,7 +254,8 @@ struct InvoiceFormView: View {
             title: invoiceTitle.isEmpty ? nil : invoiceTitle,
             invoiceDate: invoiceDate,
             lineItems: items,
-            fontName: resolvedFontName
+            fontName: resolvedFontName,
+            fontSize: CGFloat(Double(fontSizeText) ?? 12)
         )
     }
 }

@@ -180,7 +180,7 @@ public enum QRCodeGenerator {
 
         // Red carrier square (Pantone 485 C)
         let redPath = UIBezierPath(roundedRect: squareRect, cornerRadius: squareSide * 0.1)
-        UIColor(red: 1.0, green: 0.0, blue: 0.063, alpha: 1.0).setFill()
+        UIColor(red: 0xDA / 255.0, green: 0x29 / 255.0, blue: 0x1C / 255.0, alpha: 1.0).setFill()
         redPath.fill()
 
         // Cross bars: 1.5mm wide, 4.5mm long (relative to 7mm square)

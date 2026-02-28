@@ -59,7 +59,7 @@ private struct SwissCrossOverlay: View {
 
                 // Red carrier square (7 × 7 mm) in Swiss Red (Pantone 485 C)
                 RoundedRectangle(cornerRadius: side * 0.1)
-                    .fill(Color(red: 1.0, green: 0.0, blue: 0.063))
+                    .fill(Color(red: 0xDA / 255.0, green: 0x29 / 255.0, blue: 0x1C / 255.0))
                     .frame(width: side, height: side)
 
                 // White Swiss Cross

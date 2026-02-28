@@ -7,15 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		243BFD606B35B41E4FC15DC5 /* InvoicePreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CE0878E0480359BCE1C3704 /* InvoicePreviewView.swift */; };
 		5DFC8DDEC210D6F92D8E779D /* SwissInvoiceDemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D2875B5E590E5C778A4885E /* SwissInvoiceDemoApp.swift */; };
 		95D32039ADEB7F9DF6565CA3 /* InvoiceFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC45222962DAD5D8C7FE39AD /* InvoiceFormView.swift */; };
-		A190D84FCE2F3028CFE571AA /* SwissInvoice in Frameworks */ = {isa = PBXBuildFile; productRef = EB5C29D0E1BA87DC6BFEE092 /* SwissInvoice */; };
+		B59A0F162F533E810054C577 /* SwissInvoice in Frameworks */ = {isa = PBXBuildFile; productRef = B59A0F152F533E810054C577 /* SwissInvoice */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		31AD3F26DD5C5E2339CF0E42 /* SwissInvoiceTest.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwissInvoiceTest.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		8CE0878E0480359BCE1C3704 /* InvoicePreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoicePreviewView.swift; sourceTree = "<group>"; };
 		8D2875B5E590E5C778A4885E /* SwissInvoiceDemoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwissInvoiceDemoApp.swift; sourceTree = "<group>"; };
 		BC45222962DAD5D8C7FE39AD /* InvoiceFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceFormView.swift; sourceTree = "<group>"; };
 		CACB5CF2028338759B676166 /* SwissInvoice */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SwissInvoice; path = ../..; sourceTree = SOURCE_ROOT; };
@@ -26,7 +24,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A190D84FCE2F3028CFE571AA /* SwissInvoice in Frameworks */,
+				B59A0F162F533E810054C577 /* SwissInvoice in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -45,7 +43,6 @@
 			isa = PBXGroup;
 			children = (
 				BC45222962DAD5D8C7FE39AD /* InvoiceFormView.swift */,
-				8CE0878E0480359BCE1C3704 /* InvoicePreviewView.swift */,
 				8D2875B5E590E5C778A4885E /* SwissInvoiceDemoApp.swift */,
 			);
 			name = SwissInvoiceTest;
@@ -60,12 +57,20 @@
 			name = Packages;
 			sourceTree = "<group>";
 		};
+		B59A0F0F2F533C5C0054C577 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		BC46AB3EE3802F6DAEE34DCE = {
 			isa = PBXGroup;
 			children = (
 				A507B3833F6905E1C92D6BB0 /* Packages */,
 				87E46C5F169CA4F939581B0C /* SwissInvoiceTest */,
 				1B03F6B8AF4945B4BA344037 /* Products */,
+				B59A0F0F2F533C5C0054C577 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -85,7 +90,7 @@
 			);
 			name = SwissInvoiceTest;
 			packageProductDependencies = (
-				EB5C29D0E1BA87DC6BFEE092 /* SwissInvoice */,
+				B59A0F152F533E810054C577 /* SwissInvoice */,
 			);
 			productName = SwissInvoiceTest;
 			productReference = 31AD3F26DD5C5E2339CF0E42 /* SwissInvoiceTest.app */;
@@ -111,7 +116,7 @@
 			mainGroup = BC46AB3EE3802F6DAEE34DCE;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				794A511BB8B3742C7A0379A7 /* XCLocalSwiftPackageReference "../.." */,
+				B59A0F142F533E810054C577 /* XCLocalSwiftPackageReference "../../../SwissInvoice" */,
 			);
 			projectDirPath = "";
 			projectRoot = "";
@@ -127,7 +132,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				95D32039ADEB7F9DF6565CA3 /* InvoiceFormView.swift in Sources */,
-				243BFD606B35B41E4FC15DC5 /* InvoicePreviewView.swift in Sources */,
 				5DFC8DDEC210D6F92D8E779D /* SwissInvoiceDemoApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -150,6 +154,9 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = ch.thomassussli.SwissInvoiceTest;
 				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -288,6 +295,9 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = ch.thomassussli.SwissInvoiceTest;
 				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -316,14 +326,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		794A511BB8B3742C7A0379A7 /* XCLocalSwiftPackageReference "../.." */ = {
+		B59A0F142F533E810054C577 /* XCLocalSwiftPackageReference "../../../SwissInvoice" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = ../..;
+			relativePath = ../../../SwissInvoice;
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		EB5C29D0E1BA87DC6BFEE092 /* SwissInvoice */ = {
+		B59A0F152F533E810054C577 /* SwissInvoice */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SwissInvoice;
 		};

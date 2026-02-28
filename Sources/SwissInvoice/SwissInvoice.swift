@@ -61,6 +61,9 @@ public struct SwissInvoice: Sendable {
     /// Custom font name for PDF rendering. Falls back to Helvetica if nil or invalid.
     public let fontName: String?
 
+    /// Font size for the upper invoice part (header, addresses, line items). Defaults to 12 pt.
+    public let fontSize: CGFloat?
+
     // MARK: - Initializer
 
     public init(
@@ -74,7 +77,8 @@ public struct SwissInvoice: Sendable {
         title: String? = nil,
         invoiceDate: Date? = nil,
         lineItems: [InvoiceLineItem] = [],
-        fontName: String? = nil
+        fontName: String? = nil,
+        fontSize: CGFloat? = nil
     ) {
         self.creditor = creditor
         self.iban = iban
@@ -87,6 +91,7 @@ public struct SwissInvoice: Sendable {
         self.invoiceDate = invoiceDate
         self.lineItems = lineItems
         self.fontName = fontName
+        self.fontSize = fontSize
     }
 
     // MARK: - Public API
