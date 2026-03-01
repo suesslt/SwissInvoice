@@ -4,36 +4,36 @@ import SwissInvoice
 
 struct InvoiceFormView: View {
     // Creditor
-    @State private var creditorName = "Muster AG"
-    @State private var creditorStreet = "Bahnhofstrasse"
-    @State private var creditorHouseNumber = "1"
-    @State private var creditorPostalCode = "8001"
-    @State private var creditorCity = "Zürich"
+    @State private var creditorName = "Max Muster & Söhne"
+    @State private var creditorStreet = "Musterstrasse"
+    @State private var creditorHouseNumber = "123"
+    @State private var creditorPostalCode = "8000"
+    @State private var creditorCity = "Seldwyla"
     @State private var creditorCountryCode = "CH"
 
     // Debtor
     @State private var showDebtor = true
-    @State private var debtorName = "Hans Mustermann"
-    @State private var debtorStreet = "Rebenweg"
-    @State private var debtorHouseNumber = "12"
-    @State private var debtorPostalCode = "3000"
-    @State private var debtorCity = "Bern"
+    @State private var debtorName = "Simon Muster"
+    @State private var debtorStreet = "Musterstrasse"
+    @State private var debtorHouseNumber = "1a"
+    @State private var debtorPostalCode = "8000"
+    @State private var debtorCity = "Seldwyla"
     @State private var debtorCountryCode = "CH"
 
     // Payment
-    @State private var iban = "CH12 3000 0000 0000 1234 5"
+    @State private var iban = "CH64 3196 1000 0044 2155 7"
     @State private var selectedCurrency: Currency = .chf
-    @State private var amountText = "150.75"
+    @State private var amountText = "50.00"
 
     // Reference
-    @State private var referenceType: ReferenceType = .none
-    @State private var referenceNumber = ""
+    @State private var referenceType: ReferenceType = .qrReference
+    @State private var referenceNumber = "00 00082 07791 22585 74212 86694"
 
     // Invoice
     @State private var invoiceTitle = "Rechnung"
-    @State private var subject = ""
+    @State private var subject = "Rechnung für Auftritt am xxx"
     @State private var invoiceDate = Date()
-    @State private var additionalInfo = ""
+    @State private var additionalInfo = "Payment of Travel"
     @State private var fontName = ""
     @State private var fontSizeText = ""
 

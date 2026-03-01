@@ -79,11 +79,13 @@ private struct FontProvider {
     func font(size: CGFloat, weight: UIFont.Weight) -> UIFont {
         let base = UIFont(name: name, size: size)
                    ?? UIFont(name: "Helvetica", size: size)!
-        let traits: [UIFontDescriptor.TraitKey: Any] = [.weight: weight]
-        let descriptor = base.fontDescriptor.addingAttributes(
-            [.traits: traits]
-        )
-        return UIFont(descriptor: descriptor, size: size)
+        // For semibold and above, resolve the actual bold face via symbolic traits.
+        // Using addingAttributes with .weight does NOT switch font faces for named fonts.
+        guard weight >= .semibold else { return base }
+        guard let boldDescriptor = base.fontDescriptor.withSymbolicTraits(.traitBold) else {
+            return base
+        }
+        return UIFont(descriptor: boldDescriptor, size: size)
     }
 
     func font(size: CGFloat) -> UIFont {
@@ -304,7 +306,7 @@ public enum InvoicePDFRenderer {
         let marks = [PDFMass.falzmarkeOben, PDFMass.lochmarke, PDFMass.falzmarkeUnten]
 
         ctx.saveGState()
-        ctx.setStrokeColor(UIColor.separator.cgColor)
+        ctx.setStrokeColor(UIColor.lightGray.cgColor)
         ctx.setLineWidth(0.3)
         for markY in marks {
             ctx.move(to: CGPoint(x: 0, y: markY))
@@ -397,6 +399,8 @@ public enum InvoicePDFRenderer {
 
     private static func drawPaymentPart(invoice: SwissInvoice, fonts: FontProvider, in ctx: CGContext, pageRect: CGRect) {
         let zahlteilY = pageRect.height - PDFMass.zahlteilHeight
+        
+        let maxWidth = PDFMass.paymentPartWidth - 10 * PDFMass.ptPerMm
 
         // Horizontal dashed separator with scissors
         drawZahlteilSeparator(in: ctx, y: zahlteilY, pageRect: pageRect)
@@ -413,7 +417,7 @@ public enum InvoicePDFRenderer {
         var y = zahlteilY + 10
 
         "Zahlteil".draw(at: CGPoint(x: leftColX, y: y), withAttributes: titleAttr)
-        y += 20 * PDFMass.ptPerMm  // exactly 2 cm below title
+        y += 12 * PDFMass.ptPerMm
 
         // QR Code (exactly 46mm per SIX spec, modules only + vector Swiss Cross)
         // The PDF context renders the image ~4.5% smaller than the specified rect.
@@ -450,14 +454,6 @@ public enum InvoicePDFRenderer {
             .font: fonts.monospacedDigitFont(size: PDFMass.fontBody, weight: .regular)
         ]
 
-        "Währung".draw(at: CGPoint(x: leftColX, y: y), withAttributes: headingAttr)
-        "Betrag".draw(at: CGPoint(x: leftColX + 30 * PDFMass.ptPerMm, y: y), withAttributes: headingAttr)
-        y += PDFMass.fontHeading + 3
-        invoice.amount.currency.rawValue.draw(at: CGPoint(x: leftColX, y: y), withAttributes: monoSmallAttr)
-        if !invoice.amount.isZero {
-            invoice.amount.formattedShort.draw(at: CGPoint(x: leftColX + 30 * PDFMass.ptPerMm, y: y), withAttributes: monoAttr)
-        }
-
         // Right column: Payment info
         let rightColX = leftColX + PDFMass.qrCodeSize + 8 * PDFMass.ptPerMm
         var ry = zahlteilY + 10 + 20 * PDFMass.ptPerMm  // align with QR code
@@ -475,44 +471,56 @@ public enum InvoicePDFRenderer {
         let smallBodyAttr: [NSAttributedString.Key: Any] = [
             .font: fonts.font(size: PDFMass.fontSmall + 1)
         ]
-
+        
+        let sectionGap: CGFloat = 12
+        ry = zahlteilY + sectionGap
+        
         // Account / Payable to
-        "Konto / Zahlbar an".draw(at: CGPoint(x: rightColX, y: ry), withAttributes: smallLabelBoldAttr)
+        drawWrapped("Konto / Zahlbar an", at: CGPoint(x: rightColX, y: ry), maxWidth: maxWidth, attributes: smallLabelBoldAttr)
         ry += PDFMass.fontSmall + 3
-        invoice.iban.draw(at: CGPoint(x: rightColX, y: ry), withAttributes: smallBodyAttr)
+        drawWrapped(invoice.iban, at: CGPoint(x: rightColX, y: ry), maxWidth: maxWidth, attributes: smallBodyAttr)
         ry += PDFMass.fontSmall + 4
-        invoice.creditor.name.draw(at: CGPoint(x: rightColX, y: ry), withAttributes: smallBoldAttr)
+        drawWrapped(invoice.creditor.name, at: CGPoint(x: rightColX, y: ry), maxWidth: maxWidth, attributes: smallBodyAttr)
         ry += PDFMass.fontSmall + 4
-        "\(invoice.creditor.street) \(invoice.creditor.houseNumber)".draw(at: CGPoint(x: rightColX, y: ry), withAttributes: smallBodyAttr)
+        drawWrapped("\(invoice.creditor.street) \(invoice.creditor.houseNumber)", at: CGPoint(x: rightColX, y: ry), maxWidth: maxWidth, attributes: smallBodyAttr)
         ry += PDFMass.fontSmall + 4
-        "\(invoice.creditor.postalCode) \(invoice.creditor.city)".draw(at: CGPoint(x: rightColX, y: ry), withAttributes: smallBodyAttr)
-        ry += PDFMass.fontSmall + 10
+        drawWrapped("\(invoice.creditor.postalCode) \(invoice.creditor.city)", at: CGPoint(x: rightColX, y: ry), maxWidth: maxWidth, attributes: smallBodyAttr)
+        ry += PDFMass.fontSmall + sectionGap
 
         // Reference
         if let reference = invoice.reference, !reference.isEmpty {
-            "Referenz".draw(at: CGPoint(x: rightColX, y: ry), withAttributes: smallLabelAttr)
+            drawWrapped("Referenz", at: CGPoint(x: rightColX, y: ry), maxWidth: maxWidth, attributes: smallLabelBoldAttr)
             ry += PDFMass.fontSmall + 3
-            reference.draw(at: CGPoint(x: rightColX, y: ry), withAttributes: smallBodyAttr)
-            ry += PDFMass.fontSmall + 10
+            drawWrapped(reference, at: CGPoint(x: rightColX, y: ry), maxWidth: maxWidth, attributes: smallBodyAttr)
+            ry += PDFMass.fontSmall + sectionGap
         }
 
         // Additional info
         if let info = invoice.additionalInfo, !info.isEmpty {
-            "Zusätzliche Informationen".draw(at: CGPoint(x: rightColX, y: ry), withAttributes: smallLabelAttr)
+            drawWrapped("Zusätzliche Informationen", at: CGPoint(x: rightColX, y: ry), maxWidth: maxWidth, attributes: smallBoldAttr)
             ry += PDFMass.fontSmall + 3
-            info.draw(at: CGPoint(x: rightColX, y: ry), withAttributes: smallBodyAttr)
-            ry += PDFMass.fontSmall + 10
+            drawWrapped(info, at: CGPoint(x: rightColX, y: ry), maxWidth: maxWidth, attributes: smallBodyAttr)
+            ry += PDFMass.fontSmall + sectionGap
         }
 
         // Payable by
         if let debtor = invoice.debtor {
-            "Zahlbar durch (Name/Adresse)".draw(at: CGPoint(x: rightColX, y: ry), withAttributes: smallLabelBoldAttr)
+            drawWrapped("Zahlbar durch", at: CGPoint(x: rightColX, y: ry), maxWidth: maxWidth, attributes: smallBoldAttr)
             ry += PDFMass.fontSmall + 3
-            debtor.name.draw(at: CGPoint(x: rightColX, y: ry), withAttributes: smallBoldAttr)
+            drawWrapped(debtor.name, at: CGPoint(x: rightColX, y: ry), maxWidth: maxWidth, attributes: smallBodyAttr)
             ry += PDFMass.fontSmall + 4
-            "\(debtor.street) \(debtor.houseNumber)".draw(at: CGPoint(x: rightColX, y: ry), withAttributes: smallBodyAttr)
+            drawWrapped("\(debtor.street) \(debtor.houseNumber)", at: CGPoint(x: rightColX, y: ry), maxWidth: maxWidth, attributes: smallBodyAttr)
             ry += PDFMass.fontSmall + 4
-            "\(debtor.postalCode) \(debtor.city)".draw(at: CGPoint(x: rightColX, y: ry), withAttributes: smallBodyAttr)
+            drawWrapped("\(debtor.postalCode) \(debtor.city)", at: CGPoint(x: rightColX, y: ry), maxWidth: maxWidth, attributes: smallBodyAttr)
+        }
+        
+        let currAmtY = pageRect.height - 34 * PDFMass.ptPerMm
+        drawWrapped("Währung", at: CGPoint(x: leftColX, y: currAmtY), maxWidth: maxWidth, attributes: smallBoldAttr)
+        drawWrapped("Betrag", at: CGPoint(x: leftColX + 30 * PDFMass.ptPerMm, y: currAmtY), maxWidth: maxWidth, attributes: smallBoldAttr)
+        let valueY = currAmtY + PDFMass.fontReceiptHeading + 4
+        invoice.amount.currency.rawValue.draw(at: CGPoint(x: leftColX, y: valueY), withAttributes: monoSmallAttr)
+        if !invoice.amount.isZero {
+            invoice.amount.formattedShort.draw(at: CGPoint(x: leftColX + 30 * PDFMass.ptPerMm, y: valueY), withAttributes: monoSmallAttr)
         }
     }
 
@@ -539,7 +547,7 @@ public enum InvoicePDFRenderer {
 
         var y = zahlteilY + 10
 
-        "Empfangsschein".draw(at: CGPoint(x: leftX, y: y), withAttributes: titleAttr)
+        drawWrapped("Empfangsschein", at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: titleAttr)
         y += PDFMass.fontReceiptTitle + 8
 
         // Account / Payable to
@@ -547,7 +555,7 @@ public enum InvoicePDFRenderer {
         y += PDFMass.fontReceiptBody + 2
         drawWrapped(invoice.iban, at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: bodyAttr)
         y += PDFMass.fontReceiptBody + 2
-        drawWrapped(invoice.creditor.name, at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: boldAttr)
+        drawWrapped(invoice.creditor.name, at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: bodyAttr)
         y += PDFMass.fontReceiptBody + 2
         drawWrapped("\(invoice.creditor.street) \(invoice.creditor.houseNumber)", at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: bodyAttr)
         y += PDFMass.fontReceiptBody + 2
@@ -575,13 +583,13 @@ public enum InvoicePDFRenderer {
         }
 
         // Currency & Amount
-        let currAmtY = pageRect.height - 30 * PDFMass.ptPerMm
-        "Währung".draw(at: CGPoint(x: leftX, y: currAmtY), withAttributes: labelAttr)
-        "Betrag".draw(at: CGPoint(x: leftX + 18 * PDFMass.ptPerMm, y: currAmtY), withAttributes: labelAttr)
-        let valueY = currAmtY + PDFMass.fontReceiptHeading + 2
-        invoice.amount.currency.rawValue.draw(at: CGPoint(x: leftX, y: valueY), withAttributes: bodyAttr)
+        let currAmtY = pageRect.height - 34 * PDFMass.ptPerMm
+        drawWrapped("Währung", at: CGPoint(x: leftX, y: currAmtY), maxWidth: maxWidth, attributes: boldAttr)
+        drawWrapped("Betrag", at: CGPoint(x: leftX + 18 * PDFMass.ptPerMm, y: currAmtY), maxWidth: maxWidth, attributes: boldAttr)
+        let valueY = currAmtY + PDFMass.fontReceiptHeading + 4
+        drawWrapped(invoice.amount.currency.rawValue, at: CGPoint(x: leftX, y: valueY), maxWidth: maxWidth, attributes: bodyAttr)
         if !invoice.amount.isZero {
-            invoice.amount.formattedShort.draw(at: CGPoint(x: leftX + 18 * PDFMass.ptPerMm, y: valueY), withAttributes: boldAttr)
+            drawWrapped(invoice.amount.formattedShort, at: CGPoint(x: leftX + 18 * PDFMass.ptPerMm, y: valueY), maxWidth: maxWidth, attributes: bodyAttr)
         }
 
         // "Annahmestelle" (acceptance point) — bottom right of receipt
@@ -591,8 +599,8 @@ public enum InvoicePDFRenderer {
         let acceptText = "Annahmestelle"
         let acceptSize = (acceptText as NSString).size(withAttributes: acceptAttr)
         let acceptX = PDFMass.receiptWidth - 5 * PDFMass.ptPerMm - acceptSize.width
-        let acceptY = pageRect.height - 15 * PDFMass.ptPerMm
-        acceptText.draw(at: CGPoint(x: acceptX, y: acceptY), withAttributes: acceptAttr)
+        let acceptY = pageRect.height - 20 * PDFMass.ptPerMm
+        drawWrapped(acceptText, at: CGPoint(x: acceptX, y: acceptY), maxWidth: maxWidth, attributes: acceptAttr)
     }
 
     // MARK: - Drawing Helpers
