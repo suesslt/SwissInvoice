@@ -49,8 +49,11 @@ public struct SwissInvoice: Sendable {
 
     // MARK: - PDF Layout Fields
 
-    /// Invoice title (defaults to "Invoice" in PDF).
+    /// Invoice title shown in the letterhead area (defaults to "Rechnung").
     public let title: String?
+
+    /// Subject line (Betreff) displayed bold below the address area per SN 10130:2026.
+    public let subject: String?
 
     /// Invoice date.
     public let invoiceDate: Date?
@@ -61,7 +64,7 @@ public struct SwissInvoice: Sendable {
     /// Custom font name for PDF rendering. Falls back to Helvetica if nil or invalid.
     public let fontName: String?
 
-    /// Font size for the upper invoice part (header, addresses, line items). Defaults to 12 pt.
+    /// Font size for the invoice body text. Defaults to 10 pt.
     public let fontSize: CGFloat?
 
     // MARK: - Initializer
@@ -75,6 +78,7 @@ public struct SwissInvoice: Sendable {
         reference: String? = nil,
         additionalInfo: String? = nil,
         title: String? = nil,
+        subject: String? = nil,
         invoiceDate: Date? = nil,
         lineItems: [InvoiceLineItem] = [],
         fontName: String? = nil,
@@ -88,6 +92,7 @@ public struct SwissInvoice: Sendable {
         self.reference = reference
         self.additionalInfo = additionalInfo
         self.title = title
+        self.subject = subject
         self.invoiceDate = invoiceDate
         self.lineItems = lineItems
         self.fontName = fontName

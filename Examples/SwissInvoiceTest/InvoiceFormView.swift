@@ -30,7 +30,8 @@ struct InvoiceFormView: View {
     @State private var referenceNumber = ""
 
     // Invoice
-    @State private var invoiceTitle = "Invoice"
+    @State private var invoiceTitle = "Rechnung"
+    @State private var subject = ""
     @State private var invoiceDate = Date()
     @State private var additionalInfo = ""
     @State private var fontName = ""
@@ -96,12 +97,13 @@ struct InvoiceFormView: View {
 
             Section("Invoice Details") {
                 TextField("Title", text: $invoiceTitle)
+                TextField("Subject (Betreff)", text: $subject)
                 DatePicker("Date", selection: $invoiceDate, displayedComponents: .date)
                 TextField("Additional Info", text: $additionalInfo)
                 TextField("Font Name (e.g. Roboto, Open Sans)", text: $fontName)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
-                TextField("Font Size (default 12 pt)", text: $fontSizeText)
+                TextField("Font Size (default 10 pt)", text: $fontSizeText)
                     .keyboardType(.decimalPad)
             }
 
@@ -252,10 +254,11 @@ struct InvoiceFormView: View {
             reference: referenceNumber.isEmpty ? nil : referenceNumber,
             additionalInfo: additionalInfo.isEmpty ? nil : additionalInfo,
             title: invoiceTitle.isEmpty ? nil : invoiceTitle,
+            subject: subject.isEmpty ? nil : subject,
             invoiceDate: invoiceDate,
             lineItems: items,
             fontName: resolvedFontName,
-            fontSize: CGFloat(Double(fontSizeText) ?? 12)
+            fontSize: CGFloat(Double(fontSizeText) ?? 10)
         )
     }
 }

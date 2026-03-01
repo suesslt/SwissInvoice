@@ -1,6 +1,7 @@
 import UIKit
 import CoreImage.CIFilterBuiltins
 import CoreGraphics
+import SwiftUI
 
 // MARK: - PDF Measurements (points at 72 dpi)
 // 1 mm = 72/25.4 pt ≈ 2.8346 pt
@@ -14,8 +15,26 @@ private enum PDFMass {
 
     // Margins
     static let marginLeft: CGFloat    = 20  * ptPerMm
-    static let marginRight: CGFloat   = 20  * ptPerMm
-    static let marginTop: CGFloat     = 20  * ptPerMm
+    static let marginRight: CGFloat   = 10  * ptPerMm   // SN 10130: min 10 mm
+
+    // SN 10130:2026 – Vertical zones
+    static let briefkopfBottom: CGFloat  = 38 * ptPerMm  // 107.72 pt
+    static let adressfeldTop: CGFloat    = 38 * ptPerMm  // 107.72 pt
+    static let adressfeldWidth: CGFloat  = 100 * ptPerMm // 283.46 pt (Normfenster)
+    static let adressfeldHeight: CGFloat = 45 * ptPerMm  // 127.56 pt (Normfenster)
+    static let adressfeldZoneBottom: CGFloat = 97 * ptPerMm // 274.96 pt
+    static let ruhezone: CGFloat         = 3 * ptPerMm   // 8.50 pt min gap
+
+    // Rechtsadressierung: right address field X position
+    static let rechtsAdresseX: CGFloat   = 125 * ptPerMm // 354.33 pt
+
+    // Leitwörterbereich (below address zone, §5)
+    static let leitwoerterMinY: CGFloat  = 111 * ptPerMm // 314.65 pt (97 + 14 mm)
+
+    // Falzmarken (fold/punch marks)
+    static let falzmarkeOben: CGFloat    = 99 * ptPerMm    // 280.63 pt
+    static let lochmarke: CGFloat        = 148.5 * ptPerMm // 420.94 pt
+    static let falzmarkeUnten: CGFloat   = 210 * ptPerMm   // 595.28 pt
 
     // Payment part (SIX Swiss QR Bill specification)
     static let zahlteilHeight: CGFloat = 103 * ptPerMm
@@ -86,18 +105,16 @@ private struct FontProvider {
 
 // MARK: - Invoice Font Sizes (upper part only)
 
-/// Derives title, heading, body, and small font sizes from a single base body size.
+/// Derives heading, body, and small font sizes from a single base body size.
 private struct InvoiceFontSizes {
-    let title: CGFloat
     let heading: CGFloat
     let body: CGFloat
     let small: CGFloat
 
     init(body: CGFloat) {
         self.body = body
-        self.title = body + 4
-        self.heading = body - 2
-        self.small = body - 2
+        self.heading = max(body - 2, 8)
+        self.small = max(body - 4, 7)
     }
 }
 
@@ -116,112 +133,191 @@ public enum InvoicePDFRenderer {
             height: PDFMass.pageHeight
         )
         let fonts = FontProvider(requestedName: invoice.fontName)
-        let sizes = InvoiceFontSizes(body: invoice.fontSize ?? 12)
+        let sizes = InvoiceFontSizes(body: invoice.fontSize ?? 10)
         let slipFonts = FontProvider(requestedName: nil) // Always Helvetica per SIX spec
         let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
         return renderer.pdfData { ctx in
             ctx.beginPage()
             let cgCtx = ctx.cgContext
-            drawInvoiceHeader(invoice: invoice, fonts: fonts, sizes: sizes, in: cgCtx, pageRect: pageRect)
-            drawAddresses(invoice: invoice, fonts: fonts, sizes: sizes, in: cgCtx, pageRect: pageRect)
-            drawLineItems(invoice: invoice, fonts: fonts, sizes: sizes, in: cgCtx, pageRect: pageRect)
+
+            // Upper part (SN 10130:2026)
+            drawBriefkopf(invoice: invoice, fonts: fonts, sizes: sizes, in: cgCtx, pageRect: pageRect)
+            drawAdressfeldbereich(invoice: invoice, fonts: fonts, sizes: sizes, in: cgCtx, pageRect: pageRect)
+            drawFalzmarken(in: cgCtx)
+
+            // Leitwörter (Datum, Referenz) at ≥111 mm per §5
+            let hasLeitwoerter = invoice.invoiceDate != nil || (invoice.reference?.isEmpty == false)
+            let afterLeitwoerterY: CGFloat
+            if hasLeitwoerter {
+                afterLeitwoerterY = drawLeitwoerter(invoice: invoice, fonts: fonts, sizes: sizes, in: cgCtx)
+            } else {
+                afterLeitwoerterY = PDFMass.adressfeldZoneBottom
+            }
+
+            // Betreff (subject line) — 2 empty lines below Leitwörter (or address zone)
+            let lineHeight = sizes.body + sizes.body * 0.2
+            var contentStartY = afterLeitwoerterY + 2 * lineHeight
+            if let subject = invoice.subject, !subject.isEmpty {
+                let betreffAttr: [NSAttributedString.Key: Any] = [
+                    .font: fonts.font(size: sizes.body, weight: .bold)
+                ]
+                (subject as NSString).draw(
+                    at: CGPoint(x: PDFMass.marginLeft, y: contentStartY),
+                    withAttributes: betreffAttr
+                )
+                // 1 empty line after Betreff before content
+                contentStartY += sizes.body + lineHeight
+            }
+
+            // Content (line items table)
+            drawLineItems(invoice: invoice, fonts: fonts, sizes: sizes, in: cgCtx, pageRect: pageRect, startY: contentStartY)
+
+            // Lower part (unchanged — SIX Swiss QR Bill)
             drawPaymentPart(invoice: invoice, fonts: slipFonts, in: cgCtx, pageRect: pageRect)
             drawReceipt(invoice: invoice, fonts: slipFonts, in: cgCtx, pageRect: pageRect)
         }
     }
 
-    // MARK: - Invoice Header
+    // MARK: - Briefkopf (0 – 38 mm)
 
-    private static func drawInvoiceHeader(invoice: SwissInvoice, fonts: FontProvider, sizes: InvoiceFontSizes, in ctx: CGContext, pageRect: CGRect) {
+    /// Draws the letterhead zone: creditor name/address on the left, document title right-aligned.
+    private static func drawBriefkopf(invoice: SwissInvoice, fonts: FontProvider, sizes: InvoiceFontSizes, in ctx: CGContext, pageRect: CGRect) {
         let x = PDFMass.marginLeft
-        var y = PDFMass.marginTop
+        let rightEdge = pageRect.width - PDFMass.marginRight
+        var y: CGFloat = 12 * PDFMass.ptPerMm  // Start at 12 mm from top
 
-        let titleAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: sizes.title, weight: .bold)
+        // Creditor name (bold, 14pt)
+        let nameAttr: [NSAttributedString.Key: Any] = [
+            .font: fonts.font(size: 14, weight: .bold)
         ]
-        let title = invoice.title ?? "Invoice"
-        title.draw(at: CGPoint(x: x, y: y), withAttributes: titleAttr)
-        y += sizes.title + 4
+        invoice.creditor.name.draw(at: CGPoint(x: x, y: y), withAttributes: nameAttr)
+        y += 14 + 4
 
-        if let date = invoice.invoiceDate {
-            let subAttr: [NSAttributedString.Key: Any] = [
-                .font: fonts.font(size: sizes.body),
-                .foregroundColor: UIColor.secondaryLabel
-            ]
-            let dateStr = date.formatted(date: .abbreviated, time: .omitted)
-            dateStr.draw(at: CGPoint(x: x, y: y), withAttributes: subAttr)
+        // Creditor address lines (9pt)
+        let addrAttr: [NSAttributedString.Key: Any] = [
+            .font: fonts.font(size: 9),
+            .foregroundColor: UIColor.darkGray
+        ]
+        let creditorLines = buildAddressLines(invoice.creditor, includeName: false)
+        for line in creditorLines {
+            line.draw(at: CGPoint(x: x, y: y), withAttributes: addrAttr)
+            y += 9 + 2
         }
-        y += sizes.body + 4
 
-        drawHRule(in: ctx, y: y + 6, from: PDFMass.marginLeft, to: pageRect.width - PDFMass.marginRight)
+        // Document title (right-aligned, bold)
+        let title = invoice.title ?? "Rechnung"
+        let titleAttr: [NSAttributedString.Key: Any] = [
+            .font: fonts.font(size: sizes.body + 4, weight: .bold)
+        ]
+        let titleWidth = (title as NSString).size(withAttributes: titleAttr).width
+        (title as NSString).draw(
+            at: CGPoint(x: rightEdge - titleWidth, y: 12 * PDFMass.ptPerMm),
+            withAttributes: titleAttr
+        )
     }
 
-    // MARK: - Addresses
+    // MARK: - Adressfeldbereich (38 – 97 mm) – Rechtsadressierung per SN 10130:2026 §4.3
 
-    private static func drawAddresses(invoice: SwissInvoice, fonts: FontProvider, sizes: InvoiceFontSizes, in ctx: CGContext, pageRect: CGRect) {
-        let topY = PDFMass.marginTop + sizes.title + 4 + sizes.body + 4 + 20
+    /// Draws the address field zone: creditor (left), Absenderzeile + debtor as recipient (right).
+    private static func drawAdressfeldbereich(invoice: SwissInvoice, fonts: FontProvider, sizes: InvoiceFontSizes, in ctx: CGContext, pageRect: CGRect) {
+        let addressAttr: [NSAttributedString.Key: Any] = [
+            .font: fonts.font(size: 10)
+        ]
+
+        // Left: Creditor address — 10pt, sans-serif, no bold per SN 10130
+        let leftX = PDFMass.marginLeft
+        var leftY = PDFMass.adressfeldTop + 2 * PDFMass.ptPerMm
+
+        let creditorLines = buildAddressLines(invoice.creditor, includeName: true)
+        for line in creditorLines {
+            (line as NSString).draw(at: CGPoint(x: leftX, y: leftY), withAttributes: addressAttr)
+            leftY += 10 + 2
+        }
+
+        // Right: Absenderzeile (sender line) — 7pt, underlined, secondary color
+        let rightX = PDFMass.rechtsAdresseX
+        var rightY = PDFMass.adressfeldTop + 2 * PDFMass.ptPerMm
+
+        let senderLine = buildSenderLine(invoice.creditor)
+        let senderAttr: [NSAttributedString.Key: Any] = [
+            .font: fonts.font(size: 7),
+            .foregroundColor: UIColor.secondaryLabel,
+            .underlineStyle: NSUnderlineStyle.single.rawValue
+        ]
+        (senderLine as NSString).draw(at: CGPoint(x: rightX, y: rightY), withAttributes: senderAttr)
+        rightY += 7 + PDFMass.ruhezone  // Ruhezone: min 3 mm gap
+
+        // Right: Debtor as recipient — 10pt, sans-serif, no bold per SN 10130
+        if let debtor = invoice.debtor {
+            let debtorLines = buildAddressLines(debtor, includeName: true)
+            for line in debtorLines {
+                (line as NSString).draw(at: CGPoint(x: rightX, y: rightY), withAttributes: addressAttr)
+                rightY += 10 + 2
+            }
+        }
+    }
+
+    // MARK: - Leitwörterbereich (≥ 111 mm) per SN 10130:2026 §5
+
+    /// Draws Datum and Referenz in the Leitwörterbereich below the address zone.
+    /// Returns the Y position after the last entry.
+    @discardableResult
+    private static func drawLeitwoerter(invoice: SwissInvoice, fonts: FontProvider, sizes: InvoiceFontSizes, in ctx: CGContext) -> CGFloat {
+        let x = PDFMass.marginLeft
+        var y = PDFMass.leitwoerterMinY
+        let valueX = x + 22 * PDFMass.ptPerMm  // Tab stop for values
 
         let labelAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: sizes.heading, weight: .regular),
-            .foregroundColor: UIColor.secondaryLabel
+            .font: fonts.font(size: sizes.body),
+            .foregroundColor: UIColor.darkGray
         ]
-        let boldAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: sizes.body, weight: .semibold)
-        ]
-        let bodyAttr: [NSAttributedString.Key: Any] = [
+        let valueAttr: [NSAttributedString.Key: Any] = [
             .font: fonts.font(size: sizes.body)
         ]
 
-        // Creditor (left)
-        var y = topY
-        "From".draw(at: CGPoint(x: PDFMass.marginLeft, y: y), withAttributes: labelAttr)
-        y += sizes.heading + 3
-        invoice.creditor.name.draw(at: CGPoint(x: PDFMass.marginLeft, y: y), withAttributes: boldAttr)
-        y += sizes.body + 2
-        "\(invoice.creditor.street) \(invoice.creditor.houseNumber)".draw(at: CGPoint(x: PDFMass.marginLeft, y: y), withAttributes: bodyAttr)
-        y += sizes.body + 2
-        "\(invoice.creditor.postalCode) \(invoice.creditor.city)".draw(at: CGPoint(x: PDFMass.marginLeft, y: y), withAttributes: bodyAttr)
-        y += sizes.body + 2
-        invoice.creditor.countryCode.draw(at: CGPoint(x: PDFMass.marginLeft, y: y), withAttributes: bodyAttr)
-
-        // Debtor (right, right-aligned)
-        if let debtor = invoice.debtor {
-            var ry = topY
-            let rightEdge = pageRect.width - PDFMass.marginRight
-            let lines: [(String, [NSAttributedString.Key: Any])] = [
-                ("To",                                  labelAttr),
-                (debtor.name,                           boldAttr),
-                ("\(debtor.street) \(debtor.houseNumber)", bodyAttr),
-                ("\(debtor.postalCode) \(debtor.city)", bodyAttr),
-                (debtor.countryCode,                    bodyAttr)
-            ]
-            for (line, attr) in lines {
-                let w = (line as NSString).size(withAttributes: attr).width
-                (line as NSString).draw(
-                    at: CGPoint(x: rightEdge - w, y: ry),
-                    withAttributes: attr
-                )
-                let fs = (attr[.font] as? UIFont)?.pointSize ?? sizes.body
-                ry += fs + (line == "To" ? 3 : 2)
-            }
+        // Date
+        if let date = invoice.invoiceDate {
+            "Datum:".draw(at: CGPoint(x: x, y: y), withAttributes: labelAttr)
+            let formatter = DateFormatter()
+            formatter.dateStyle = .long
+            formatter.locale = Locale(identifier: "de_CH")
+            let dateStr = formatter.string(from: date)
+            dateStr.draw(at: CGPoint(x: valueX, y: y), withAttributes: valueAttr)
+            y += sizes.body + 2
         }
 
-        let hRuleY = topY + (sizes.heading + 3) + 4 * (sizes.body + 2) + 10
-        drawHRule(in: ctx, y: hRuleY, from: PDFMass.marginLeft, to: pageRect.width - PDFMass.marginRight)
+        // Reference
+        if let reference = invoice.reference, !reference.isEmpty {
+            "Referenz:".draw(at: CGPoint(x: x, y: y), withAttributes: labelAttr)
+            reference.draw(at: CGPoint(x: valueX, y: y), withAttributes: valueAttr)
+            y += sizes.body + 2
+        }
+
+        return y
+    }
+
+    // MARK: - Falzmarken (fold/punch marks)
+
+    /// Draws fold and punch marks at the left edge per SN 10130:2026.
+    private static func drawFalzmarken(in ctx: CGContext) {
+        let markLength: CGFloat = 4 * PDFMass.ptPerMm  // 4 mm mark
+        let marks = [PDFMass.falzmarkeOben, PDFMass.lochmarke, PDFMass.falzmarkeUnten]
+
+        ctx.saveGState()
+        ctx.setStrokeColor(UIColor.separator.cgColor)
+        ctx.setLineWidth(0.3)
+        for markY in marks {
+            ctx.move(to: CGPoint(x: 0, y: markY))
+            ctx.addLine(to: CGPoint(x: markLength, y: markY))
+        }
+        ctx.strokePath()
+        ctx.restoreGState()
     }
 
     // MARK: - Line Items Table
 
-    private static func drawLineItems(invoice: SwissInvoice, fonts: FontProvider, sizes: InvoiceFontSizes, in ctx: CGContext, pageRect: CGRect) {
-        let topY = PDFMass.marginTop
-            + sizes.title + 4
-            + sizes.body  + 4
-            + 20
-            + (sizes.heading + 3)
-            + 4 * (sizes.body + 2)
-            + 20
-
-        var y = topY
+    private static func drawLineItems(invoice: SwissInvoice, fonts: FontProvider, sizes: InvoiceFontSizes, in ctx: CGContext, pageRect: CGRect, startY: CGFloat) {
+        var y = startY
         let x = PDFMass.marginLeft
         let rightEdge = pageRect.width - PDFMass.marginRight
         let contentWidth = rightEdge - x
@@ -289,15 +385,6 @@ public enum InvoicePDFRenderer {
         }
 
         // Total
-        if let date = invoice.invoiceDate {
-            let dateAttr: [NSAttributedString.Key: Any] = [
-                .font: fonts.font(size: sizes.body),
-                .foregroundColor: UIColor.secondaryLabel
-            ]
-            let dateStr = date.formatted(date: .abbreviated, time: .omitted)
-            dateStr.draw(at: CGPoint(x: x, y: y), withAttributes: dateAttr)
-        }
-
         let totalLabel = "Total"
         let totalLabelAttr: [NSAttributedString.Key: Any] = [
             .font: fonts.font(size: sizes.body, weight: .bold)
@@ -444,7 +531,7 @@ public enum InvoicePDFRenderer {
             .foregroundColor: UIColor.secondaryLabel
         ]
         let boldAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: PDFMass.fontReceiptBody, weight: .semibold)
+            .font: fonts.font(size: PDFMass.fontReceiptBody, weight: .bold)
         ]
         let bodyAttr: [NSAttributedString.Key: Any] = [
             .font: fonts.font(size: PDFMass.fontReceiptBody)
@@ -456,8 +543,8 @@ public enum InvoicePDFRenderer {
         y += PDFMass.fontReceiptTitle + 8
 
         // Account / Payable to
-        "Konto / Zahlbar an".draw(at: CGPoint(x: leftX, y: y), withAttributes: labelAttr)
-        y += PDFMass.fontReceiptHeading + 2
+        drawWrapped("Konto / Zahlbar an", at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: boldAttr)
+        y += PDFMass.fontReceiptBody + 2
         drawWrapped(invoice.iban, at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: bodyAttr)
         y += PDFMass.fontReceiptBody + 2
         drawWrapped(invoice.creditor.name, at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: boldAttr)
@@ -465,26 +552,26 @@ public enum InvoicePDFRenderer {
         drawWrapped("\(invoice.creditor.street) \(invoice.creditor.houseNumber)", at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: bodyAttr)
         y += PDFMass.fontReceiptBody + 2
         drawWrapped("\(invoice.creditor.postalCode) \(invoice.creditor.city)", at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: bodyAttr)
-        y += PDFMass.fontReceiptBody + 6
+        y += PDFMass.fontReceiptBody + 8
 
         // Reference
         if let reference = invoice.reference, !reference.isEmpty {
-            "Referenz".draw(at: CGPoint(x: leftX, y: y), withAttributes: labelAttr)
+            drawWrapped("Referenz", at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: boldAttr)
             y += PDFMass.fontReceiptHeading + 2
             drawWrapped(reference, at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: bodyAttr)
-            y += PDFMass.fontReceiptBody + 6
+            y += PDFMass.fontReceiptBody + 8
         }
 
         // Payable by
         if let debtor = invoice.debtor {
-            "Zahlbar durch".draw(at: CGPoint(x: leftX, y: y), withAttributes: labelAttr)
+            drawWrapped("Zahlbar durch", at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: boldAttr)
             y += PDFMass.fontReceiptHeading + 2
-            drawWrapped(debtor.name, at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: boldAttr)
+            drawWrapped(debtor.name, at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: bodyAttr)
             y += PDFMass.fontReceiptBody + 2
             drawWrapped("\(debtor.street) \(debtor.houseNumber)", at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: bodyAttr)
             y += PDFMass.fontReceiptBody + 2
             drawWrapped("\(debtor.postalCode) \(debtor.city)", at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: bodyAttr)
-            y += PDFMass.fontReceiptBody + 6
+            y += PDFMass.fontReceiptBody + 8
         }
 
         // Currency & Amount
@@ -561,5 +648,38 @@ public enum InvoicePDFRenderer {
     private static func drawWrapped(_ text: String, at point: CGPoint, maxWidth: CGFloat, attributes: [NSAttributedString.Key: Any]) {
         let rect = CGRect(x: point.x, y: point.y, width: maxWidth, height: 100)
         (text as NSString).draw(with: rect, options: .usesLineFragmentOrigin, attributes: attributes, context: nil)
+    }
+
+    // MARK: - Address Helpers
+
+    /// Builds address lines from an Address, optionally including the name.
+    /// Omits countryCode for CH addresses (domestic).
+    private static func buildAddressLines(_ address: Address, includeName: Bool) -> [String] {
+        var lines: [String] = []
+        if includeName {
+            lines.append(address.name)
+        }
+        let street = "\(address.street) \(address.houseNumber)".trimmingCharacters(in: .whitespaces)
+        if !street.isEmpty {
+            lines.append(street)
+        }
+        let cityLine = "\(address.postalCode) \(address.city)".trimmingCharacters(in: .whitespaces)
+        if !cityLine.isEmpty {
+            lines.append(cityLine)
+        }
+        if address.countryCode.uppercased() != "CH" && !address.countryCode.isEmpty {
+            lines.append(address.countryCode)
+        }
+        return lines
+    }
+
+    /// Builds a compact sender line for the Absenderzeile (e.g. "Muster AG, Musterstrasse 1, 3000 Bern").
+    private static func buildSenderLine(_ address: Address) -> String {
+        var parts: [String] = [address.name]
+        let street = "\(address.street) \(address.houseNumber)".trimmingCharacters(in: .whitespaces)
+        if !street.isEmpty { parts.append(street) }
+        let city = "\(address.postalCode) \(address.city)".trimmingCharacters(in: .whitespaces)
+        if !city.isEmpty { parts.append(city) }
+        return parts.joined(separator: ", ")
     }
 }
