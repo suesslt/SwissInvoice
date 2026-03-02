@@ -119,22 +119,24 @@ public struct SwissQRCodeView: View {
         invoice: SwissInvoice(
             creditor: Address(
                 name: "Robert Schneider AG",
+                addressAddition: "",
                 street: "Rue du Lac",
                 houseNumber: "1268",
                 postalCode: "2501",
                 city: "Biel",
                 countryCode: "CH"
             ),
-            iban: "CH4431999123000889012",
-            amount: Money(amount: 1949.75, currency: .chf),
             debtor: Address(
                 name: "Pia-Maria Rutschmann-Schnyder",
+                addressAddition: "c/o Mark Heinz",
                 street: "Grosse Marktgasse",
                 houseNumber: "28",
                 postalCode: "9400",
                 city: "Rorschach",
                 countryCode: "CH"
             ),
+            iban: "CH4431999123000889012",
+            amount: Money(amount: 1949.75, currency: .chf),
             reference: "210000000003139471430009017"
         ),
         size: 300

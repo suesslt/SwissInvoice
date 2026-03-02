@@ -20,81 +20,55 @@ import UIKit
 /// let qrImage = invoice.qrCodeImage()
 /// ```
 public struct SwissInvoice: Sendable {
-
-    // MARK: - Required Fields
-
-    /// Creditor (payee) address.
-    public let creditor: Address
-
-    /// IBAN or QR-IBAN of the creditor.
-    public let iban: String
-
-    /// Invoice amount. Currency is derived from `amount.currency`.
-    /// Only CHF and EUR are allowed per the Swiss QR Bill standard.
-    public let amount: Money
-
-    // MARK: - Optional Fields
-
-    /// Debtor (payer) address.
-    public let debtor: Address?
-
-    /// Payment reference type.
-    public let referenceType: ReferenceType
-
-    /// Payment reference number.
-    public let reference: String?
-
-    /// Additional unstructured information.
-    public let additionalInfo: String?
-
-    // MARK: - PDF Layout Fields
-
-    /// Invoice title shown in the letterhead area (defaults to "Rechnung").
     public let title: String?
-
-    /// Subject line (Betreff) displayed bold below the address area per SN 10130:2026.
-    public let subject: String?
-
-    /// Invoice date.
+    public let creditor: Address
+    public let debtor: Address
     public let invoiceDate: Date?
-
-    /// Line items for the invoice table.
+    public let iban: String
+    public let amount: Money
+    public let referenceType: ReferenceType
+    public let reference: String?
+    public let additionalInfo: String?
+    public let vatNr: String?
+    public let subject: String?
+    public let leadingText: String?
     public let lineItems: [InvoiceLineItem]
-
-    /// Custom font name for PDF rendering. Falls back to Helvetica if nil or invalid.
+    public let trailingText: String?
     public let fontName: String?
-
-    /// Font size for the invoice body text. Defaults to 10 pt.
     public let fontSize: CGFloat?
 
-    // MARK: - Initializer
-
     public init(
+        title: String? = nil,
         creditor: Address,
+        debtor: Address,
+        invoiceDate: Date? = nil,
         iban: String,
         amount: Money,
-        debtor: Address? = nil,
         referenceType: ReferenceType = .none,
         reference: String? = nil,
         additionalInfo: String? = nil,
-        title: String? = nil,
+        vatNr: String? = nil,
         subject: String? = nil,
-        invoiceDate: Date? = nil,
+        leadingText: String? = nil,
         lineItems: [InvoiceLineItem] = [],
+        trailingText: String? = nil,
         fontName: String? = nil,
         fontSize: CGFloat? = nil
     ) {
         self.creditor = creditor
+        self.debtor = debtor
         self.iban = iban
         self.amount = amount
-        self.debtor = debtor
         self.referenceType = referenceType
         self.reference = reference
         self.additionalInfo = additionalInfo
+        self.vatNr = vatNr
         self.title = title
         self.subject = subject
+        self.leadingText = leadingText
         self.invoiceDate = invoiceDate
         self.lineItems = lineItems
+        self.trailingText = trailingText
         self.fontName = fontName
         self.fontSize = fontSize
     }

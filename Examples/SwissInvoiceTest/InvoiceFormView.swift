@@ -1,19 +1,21 @@
-import SwiftUI
 import QuickLook
+import SwiftUI
 import SwissInvoice
 
 struct InvoiceFormView: View {
     // Creditor
-    @State private var creditorName = "Max Muster & Söhne"
-    @State private var creditorStreet = "Musterstrasse"
-    @State private var creditorHouseNumber = "123"
-    @State private var creditorPostalCode = "8000"
-    @State private var creditorCity = "Seldwyla"
+    @State private var creditorName = "Thomas Suessli - Mandate und Beratung"
+    @State private var creditorAddressAddition = "Postfach 2663"
+    @State private var creditorStreet = "Haselwart"
+    @State private var creditorHouseNumber = "29"
+    @State private var creditorPostalCode = "6210"
+    @State private var creditorCity = "Sursee"
     @State private var creditorCountryCode = "CH"
 
     // Debtor
     @State private var showDebtor = true
     @State private var debtorName = "Simon Muster"
+    @State private var debtorAddressAddition = "c/o Firma Muster"
     @State private var debtorStreet = "Musterstrasse"
     @State private var debtorHouseNumber = "1a"
     @State private var debtorPostalCode = "8000"
@@ -24,6 +26,7 @@ struct InvoiceFormView: View {
     @State private var iban = "CH64 3196 1000 0044 2155 7"
     @State private var selectedCurrency: Currency = .chf
     @State private var amountText = "50.00"
+    @State private var vatNr = "CHE-123.456.789 MWST"
 
     // Reference
     @State private var referenceType: ReferenceType = .qrReference
@@ -31,16 +34,26 @@ struct InvoiceFormView: View {
 
     // Invoice
     @State private var invoiceTitle = "Rechnung"
-    @State private var subject = "Rechnung für Auftritt am xxx"
+    @State private var subject = "Rechnung für Erbrachte Leistungen"
     @State private var invoiceDate = Date()
     @State private var additionalInfo = "Payment of Travel"
     @State private var fontName = ""
     @State private var fontSizeText = ""
+    @State private var leadingText =
+        "Sehr geehrter Herr \nGemäss unserer Vereinbarung vom xxxx stelle ich Ihnen wie folgt Rechnung:"
+    @State private var trailingText =
+        "Besten Dank für Ihr Vertrauen und den Auftrag.\n\nMit freundlichen Grüssen,\nThomas Süssli"
 
     // Line Items
     @State private var lineItems: [LineItemEntry] = [
-        LineItemEntry(description: "Consulting", quantity: "10", unit: "h", unitPrice: "150.00"),
-        LineItemEntry(description: "Travel expenses", quantity: "", unit: "", unitPrice: ""),
+        LineItemEntry(description: "Keynote vom 2. März 2026", quantity: "10", unit: "h", unitPrice: "3000.00"),
+        LineItemEntry(
+            description: "Cyber Awareness, 2 Sessions, am 2. März 2026",
+            quantity: "",
+            unit: "",
+            unitPrice: "6000.00"
+        ),
+        LineItemEntry(description: "", quantity: "", unit: "", unitPrice: "674.38"),
     ]
 
     // PDF preview
@@ -53,8 +66,30 @@ struct InvoiceFormView: View {
 
     var body: some View {
         Form {
+            Section {
+                Button("Generate Invoice") {
+                    generateInvoice()
+                }
+                .font(.headline)
+                .disabled(isLoadingFont)
+
+                if isLoadingFont {
+                    HStack {
+                        ProgressView()
+                        Text("Loading font…")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if let fontError {
+                    Text(fontError)
+                        .foregroundStyle(.red)
+                        .font(.caption)
+                }
+            }
             Section("Creditor") {
                 TextField("Name", text: $creditorName)
+                TextField("Address Addition", text: $creditorAddressAddition)
                 TextField("Street", text: $creditorStreet)
                 TextField("House Number", text: $creditorHouseNumber)
                 TextField("Postal Code", text: $creditorPostalCode)
@@ -66,6 +101,7 @@ struct InvoiceFormView: View {
                 Toggle("Include Debtor", isOn: $showDebtor)
                 if showDebtor {
                     TextField("Name", text: $debtorName)
+                    TextField("Address Addition", text: $debtorAddressAddition)
                     TextField("Street", text: $debtorStreet)
                     TextField("House Number", text: $debtorHouseNumber)
                     TextField("Postal Code", text: $debtorPostalCode)
@@ -100,11 +136,23 @@ struct InvoiceFormView: View {
                 TextField("Subject (Betreff)", text: $subject)
                 DatePicker("Date", selection: $invoiceDate, displayedComponents: .date)
                 TextField("Additional Info", text: $additionalInfo)
+                TextField("MWST", text: $vatNr)
                 TextField("Font Name (e.g. Roboto, Open Sans)", text: $fontName)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
                 TextField("Font Size (default 10 pt)", text: $fontSizeText)
                     .keyboardType(.decimalPad)
+            }
+
+            Section("Brieftext") {
+                TextField("Anrede und Brieftxt", text: $leadingText, axis: .vertical)
+                    .lineLimit(3...10)  // Startet bei 3 Zeilen, wächst bis maximal 10
+                    .textFieldStyle(.roundedBorder)
+                    .padding()
+                TextField("Grussformel", text: $trailingText, axis: .vertical)
+                    .lineLimit(3...10)  // Startet bei 3 Zeilen, wächst bis maximal 10
+                    .textFieldStyle(.roundedBorder)
+                    .padding()
             }
 
             Section("Line Items") {
@@ -129,27 +177,6 @@ struct InvoiceFormView: View {
                 }
             }
 
-            Section {
-                Button("Generate Invoice") {
-                    generateInvoice()
-                }
-                .font(.headline)
-                .disabled(isLoadingFont)
-
-                if isLoadingFont {
-                    HStack {
-                        ProgressView()
-                        Text("Loading font…")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                if let fontError {
-                    Text(fontError)
-                        .foregroundStyle(.red)
-                        .font(.caption)
-                }
-            }
         }
         .navigationTitle("Swiss Invoice Demo")
         .quickLookPreview($pdfURL)
@@ -200,6 +227,7 @@ struct InvoiceFormView: View {
     private func buildInvoice() -> SwissInvoice {
         let creditor = Address(
             name: creditorName,
+            addressAddition: creditorAddressAddition,
             street: creditorStreet,
             houseNumber: creditorHouseNumber,
             postalCode: creditorPostalCode,
@@ -207,14 +235,15 @@ struct InvoiceFormView: View {
             countryCode: creditorCountryCode
         )
 
-        let debtor: Address? = showDebtor ? Address(
+        let debtor = Address(
             name: debtorName,
+            addressAddition: debtorAddressAddition,
             street: debtorStreet,
             houseNumber: debtorHouseNumber,
             postalCode: debtorPostalCode,
             city: debtorCity,
             countryCode: debtorCountryCode
-        ) : nil
+        )
 
         let amount = Money(
             amount: Decimal(string: amountText) ?? 0,
@@ -224,10 +253,13 @@ struct InvoiceFormView: View {
         let items: [InvoiceLineItem] = lineItems.compactMap { entry in
             guard !entry.description.isEmpty else { return nil }
             let qty = Decimal(string: entry.quantity)
-            let up = entry.unitPrice.isEmpty ? nil : Money(
-                amount: Decimal(string: entry.unitPrice) ?? 0,
-                currency: selectedCurrency
-            )
+            let up =
+                entry.unitPrice.isEmpty
+                ? nil
+                : Money(
+                    amount: Decimal(string: entry.unitPrice) ?? 0,
+                    currency: selectedCurrency
+                )
             let itemAmount: Money
             if let q = qty, let u = up {
                 itemAmount = u * q
@@ -246,29 +278,48 @@ struct InvoiceFormView: View {
         }
 
         return SwissInvoice(
+            title: invoiceTitle.isEmpty ? nil : invoiceTitle,
             creditor: creditor,
+            debtor: debtor,
+            invoiceDate: invoiceDate,
             iban: iban,
             amount: amount,
-            debtor: debtor,
             referenceType: referenceType,
             reference: referenceNumber.isEmpty ? nil : referenceNumber,
             additionalInfo: additionalInfo.isEmpty ? nil : additionalInfo,
-            title: invoiceTitle.isEmpty ? nil : invoiceTitle,
+            vatNr: vatNr,
             subject: subject.isEmpty ? nil : subject,
-            invoiceDate: invoiceDate,
+            leadingText: leadingText,
             lineItems: items,
+            trailingText: trailingText,
             fontName: resolvedFontName,
             fontSize: CGFloat(Double(fontSizeText) ?? 10)
         )
     }
 }
 
-// MARK: - Line Item Entry (form state)
-
 struct LineItemEntry: Identifiable {
     let id = UUID()
+    var type: LineItemType = .fixedPrice
     var description: String = ""
     var quantity: String = ""
     var unit: String = ""
     var unitPrice: String = ""
+    var totalPrice: String = ""
+}
+
+enum LineItemType: String, CaseIterable, Identifiable {
+    case fixedPrice
+    case vat
+    
+    var id: String { self.rawValue }
+    
+    var label: String {
+        switch self {
+        case .fixedPrice:
+            return "Netto-Betrag"
+        case .vat:
+            return "Mehrwertsteuer"
+        }
+    }
 }
