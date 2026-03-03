@@ -46,14 +46,14 @@ struct InvoiceFormView: View {
 
     // Line Items
     @State private var lineItems: [LineItemEntry] = [
-        LineItemEntry(description: "Keynote vom 2. März 2026", quantity: "10", unit: "h", unitPrice: "3000.00"),
+        LineItemEntry(type: .unitPrice ,description: "Vorbereitungszeit", quantity: "10", unit: "h", unitPrice: "3000.00"),
         LineItemEntry(
-            description: "Cyber Awareness, 2 Sessions, am 2. März 2026",
-            quantity: "",
-            unit: "",
-            unitPrice: "6000.00"
+            type: .fixedPrice,
+            description: "Cyber Awareness Training, 2 Sessions, am 2. März 2026",
+            totalPrice: "6000.00"
         ),
-        LineItemEntry(description: "", quantity: "", unit: "", unitPrice: "674.38"),
+        LineItemEntry(type: .vat, description: "", quantity: "", unit: "", totalPrice: "674.38", vatRate: "5.6"),
+        LineItemEntry(type: .vat, description: "", quantity: "", unit: "", totalPrice: "74.87", vatRate: "8.1"),
     ]
 
     // PDF preview
@@ -159,6 +159,19 @@ struct InvoiceFormView: View {
                 ForEach($lineItems) { $item in
                     VStack(alignment: .leading, spacing: 4) {
                         TextField("Description", text: $item.description)
+                        Picker("Line Item Type", selection: $item.type) {
+                            ForEach(LineItemType.allCases) { type in
+                                Text(type.label)
+                                    .tag(type)
+                            }
+                        }
+                        // Der .menu Style kommt einer ComboBox am nächsten
+                        .pickerStyle(.menu)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color(.systemBackground))
+                        .cornerRadius(8)
+                        .shadow(radius: 1)
                         HStack {
                             TextField("Qty", text: $item.quantity)
                                 .frame(width: 60)
@@ -166,6 +179,8 @@ struct InvoiceFormView: View {
                             TextField("Unit", text: $item.unit)
                                 .frame(width: 60)
                             TextField("Unit Price", text: $item.unitPrice)
+                                .keyboardType(.decimalPad)
+                            TextField("VAT", text: $item.vatRate)
                                 .keyboardType(.decimalPad)
                         }
                     }
@@ -245,15 +260,10 @@ struct InvoiceFormView: View {
             countryCode: debtorCountryCode
         )
 
-        let amount = Money(
-            amount: Decimal(string: amountText) ?? 0,
-            currency: selectedCurrency
-        )
-
         let items: [InvoiceLineItem] = lineItems.compactMap { entry in
-            guard !entry.description.isEmpty else { return nil }
+//            guard !entry.description.isEmpty else { return nil }
             let qty = Decimal(string: entry.quantity)
-            let up =
+            let unitPrice =
                 entry.unitPrice.isEmpty
                 ? nil
                 : Money(
@@ -261,19 +271,28 @@ struct InvoiceFormView: View {
                     currency: selectedCurrency
                 )
             let itemAmount: Money
-            if let q = qty, let u = up {
+            if entry.type == .unitPrice, let q = qty, let u = unitPrice {
                 itemAmount = u * q
-            } else if let u = up {
+            } else if entry.type == .fixedPrice, let u = unitPrice {
                 itemAmount = u
+            } else if entry.type == .vat {
+                itemAmount = Money(
+                    amount: Decimal(string: entry.totalPrice) ?? 0,
+                    currency: selectedCurrency
+                )
             } else {
-                itemAmount = Money.zero(selectedCurrency)
+                itemAmount = Money(
+                    amount: Decimal(string: entry.unitPrice) ?? 0,
+                    currency: selectedCurrency
+                )
             }
             return InvoiceLineItem(
                 description: entry.description,
                 quantity: qty,
                 unit: entry.unit.isEmpty ? nil : entry.unit,
-                unitPrice: up,
-                amount: itemAmount
+                unitPrice: unitPrice,
+                amount: itemAmount,
+                lineItemType: entry.type
             )
         }
 
@@ -283,7 +302,6 @@ struct InvoiceFormView: View {
             debtor: debtor,
             invoiceDate: invoiceDate,
             iban: iban,
-            amount: amount,
             referenceType: referenceType,
             reference: referenceNumber.isEmpty ? nil : referenceNumber,
             additionalInfo: additionalInfo.isEmpty ? nil : additionalInfo,
@@ -306,20 +324,5 @@ struct LineItemEntry: Identifiable {
     var unit: String = ""
     var unitPrice: String = ""
     var totalPrice: String = ""
-}
-
-enum LineItemType: String, CaseIterable, Identifiable {
-    case fixedPrice
-    case vat
-    
-    var id: String { self.rawValue }
-    
-    var label: String {
-        switch self {
-        case .fixedPrice:
-            return "Netto-Betrag"
-        case .vat:
-            return "Mehrwertsteuer"
-        }
-    }
+    var vatRate: String = ""
 }

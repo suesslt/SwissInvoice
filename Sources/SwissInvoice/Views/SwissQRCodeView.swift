@@ -136,7 +136,6 @@ public struct SwissQRCodeView: View {
                 countryCode: "CH"
             ),
             iban: "CH4431999123000889012",
-            amount: Money(amount: 1949.75, currency: .chf),
             reference: "210000000003139471430009017"
         ),
         size: 300

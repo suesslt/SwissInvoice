@@ -161,24 +161,8 @@ public enum InvoicePDFRenderer {
         let nameAttr: [NSAttributedString.Key: Any] = [
             .font: fonts.font(size: headerFontSize, weight: .bold)
         ]
-//        invoice.creditor.name.draw(at: CGPoint(x: PDFMass.marginLeft, y: y), withAttributes: nameAttr)
-//        y += headerFontSize + PDFMass.lineSpacing + PDFMass.lineSpacing
-        let maximaleGroesse = CGSize(width: PDFMass.pageWidth - PDFMass.marginLeft - PDFMass.marginRight, height: CGFloat.greatestFiniteMagnitude)
-        let rahmen = invoice.creditor.name.boundingRect(
-            with: maximaleGroesse,
-            options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: nameAttr,
-            context: nil
-        )
-        let benoetigteHoehe = ceil(rahmen.height)
-        let drawRect = CGRect(x: PDFMass.marginLeft, y: y, width: PDFMass.pageWidth - PDFMass.marginLeft - PDFMass.marginRight, height: benoetigteHoehe)
-        invoice.creditor.name.draw(
-            with: drawRect,
-            options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: nameAttr,
-            context: nil
-        )
-        y += benoetigteHoehe
+        invoice.creditor.name.draw(at: CGPoint(x: PDFMass.marginLeft, y: y), withAttributes: nameAttr)
+        y += headerFontSize + PDFMass.lineSpacing + PDFMass.lineSpacing
 
         let addrAttr: [NSAttributedString.Key: Any] = [
             .font: fonts.font(size: PDFMass.fontTitleAddress),
@@ -230,10 +214,6 @@ public enum InvoicePDFRenderer {
         }
     }
 
-    // MARK: - Leitwörterbereich (≥ 111 mm) per SN 10130:2026 §5
-
-    /// Draws Datum and Referenz in the Leitwörterbereich below the address zone.
-    /// Returns the Y position after the last entry.
     private static func drawLeitwoerter(
         invoice: SwissInvoice,
         fonts: FontProvider,
@@ -291,11 +271,31 @@ public enum InvoicePDFRenderer {
                 withAttributes: betreffAttr
             )
             // 1 empty line after Betreff before content
-            result += sizes.body + sizes.body
+            result += sizes.body + sizes.body // TODO: Empty line?
         }
         return result
     }
 
+    fileprivate static func drawTrailingText(_ invoice: SwissInvoice, _ maximaleGroesse: CGSize, _ betreffAttr: [NSAttributedString.Key : Any], _ result: CGFloat, _ width: CGFloat) {
+        if let trailingText = invoice.trailingText, !trailingText.isEmpty {
+            let rahmen = trailingText.boundingRect(
+                with: maximaleGroesse,
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
+                attributes: betreffAttr,
+                context: nil
+            )
+            
+            let benoetigteHoehe = ceil(rahmen.height)
+            let drawRect = CGRect(x: PDFMass.marginLeft, y: result, width: width, height: benoetigteHoehe)
+            trailingText.draw(
+                with: drawRect,
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
+                attributes: betreffAttr,
+                context: nil
+            )
+        }
+    }
+    
     private static func drawContent(
         invoice: SwissInvoice,
         yPosition: CGFloat,
@@ -303,7 +303,6 @@ public enum InvoicePDFRenderer {
         sizes: InvoiceFontSizes,
         in ctx: CGContext
     ) {
-        
         var result = yPosition
         let betreffAttr: [NSAttributedString.Key: Any] = [
             .font: fonts.font(size: PDFMass.fontBody)
@@ -334,31 +333,11 @@ public enum InvoicePDFRenderer {
             in: ctx,
             yPosition: result
         )
-        if let trailingText = invoice.trailingText, !trailingText.isEmpty {
-            let rahmen = trailingText.boundingRect(
-                with: maximaleGroesse,
-                options: [.usesLineFragmentOrigin, .usesFontLeading],
-                attributes: betreffAttr,
-                context: nil
-            )
-
-            let benoetigteHoehe = ceil(rahmen.height)
-            let drawRect = CGRect(x: PDFMass.marginLeft, y: result, width: width, height: benoetigteHoehe)
-            trailingText.draw(
-                with: drawRect,
-                options: [.usesLineFragmentOrigin, .usesFontLeading],
-                attributes: betreffAttr,
-                context: nil
-            )
-        }
+        drawTrailingText(invoice, maximaleGroesse, betreffAttr, result, width)
     }
 
-    // MARK: - Falzmarken (fold/punch marks)
-
-    /// Draws fold and punch marks at the left edge per SN 10130:2026.
     private static func drawFalzmarken(in ctx: CGContext) {
         let markLength: CGFloat = 4 * PDFMass.ptPerMm  // 4 mm mark
-
         ctx.saveGState()
         ctx.setStrokeColor(UIColor.lightGray.cgColor)
         ctx.setLineWidth(0.3)
@@ -400,12 +379,14 @@ public enum InvoicePDFRenderer {
             let colQuantity = PDFMass.marginLeft + contentWidth * 0.50
             let colUnit = PDFMass.marginLeft + contentWidth * 0.60
             let colAmount = rightEdge
-
+            
             // Table header
             "Description".draw(at: CGPoint(x: colDescription, y: result), withAttributes: headerAttr)
-            "Qty".draw(at: CGPoint(x: colQuantity, y: result), withAttributes: headerAttr)
-            "Unit".draw(at: CGPoint(x: colUnit, y: result), withAttributes: headerAttr)
-            drawRightAligned("Unit Price", at: CGPoint(x: colAmount - 60, y: result), attributes: headerAttr)
+            if invoice.hasUnitItems() {
+                "Qty".draw(at: CGPoint(x: colQuantity, y: result), withAttributes: headerAttr)
+                "Unit".draw(at: CGPoint(x: colUnit, y: result), withAttributes: headerAttr)
+                drawRightAligned("Unit Price", at: CGPoint(x: colAmount - 60, y: result), attributes: headerAttr)
+            }
             drawRightAligned("Amount", at: CGPoint(x: colAmount, y: result), attributes: headerAttr)
             result += sizes.small + 4
 
@@ -413,7 +394,7 @@ public enum InvoicePDFRenderer {
             result += 4
 
             // Line items
-            for item in invoice.lineItems {
+            for item in invoice.invoiceItems {
                 (item.description as NSString).draw(
                     in: CGRect(
                         x: colDescription,
@@ -424,21 +405,21 @@ public enum InvoicePDFRenderer {
                     withAttributes: bodyAttr
                 )
 
-                if let qty = item.quantity {
-                    let qtyStr = "\(qty)"
-                    qtyStr.draw(at: CGPoint(x: colQuantity, y: result), withAttributes: monoAttr)
-                }
-
-                if let unit = item.unit {
-                    unit.draw(at: CGPoint(x: colUnit, y: result), withAttributes: bodyAttr)
-                }
-
-                if let unitPrice = item.unitPrice {
-                    drawRightAligned(
-                        unitPrice.formattedShort,
-                        at: CGPoint(x: colAmount - 60, y: result),
-                        attributes: monoAttr
-                    )
+                if item.lineItemType == .unitPrice {
+                    if let qty = item.quantity {
+                        let qtyStr = "\(qty)"
+                        qtyStr.draw(at: CGPoint(x: colQuantity, y: result), withAttributes: monoAttr)
+                    }
+                    if let unit = item.unit {
+                        unit.draw(at: CGPoint(x: colUnit, y: result), withAttributes: bodyAttr)
+                    }
+                    if let unitPrice = item.unitPrice {
+                        drawRightAligned(
+                            unitPrice.formattedShort,
+                            at: CGPoint(x: colAmount - 60, y: result),
+                            attributes: monoAttr
+                        )
+                    }
                 }
 
                 drawRightAligned(item.amount.formattedShort, at: CGPoint(x: colAmount, y: result), attributes: monoAttr)
@@ -449,11 +430,19 @@ public enum InvoicePDFRenderer {
             drawHRule(in: ctx, y: result, from: PDFMass.marginLeft, to: rightEdge, lineWidth: 0.3)
             result += 6
         }
-
-        // Total
         let totalLabelAttr: [NSAttributedString.Key: Any] = [
             .font: fonts.font(size: sizes.body, weight: .bold)
         ]
+        if invoice.hasVat() {
+            "Total ohne MWST".draw(at: CGPoint(x: PDFMass.marginLeft + contentWidth * 0.50, y: result), withAttributes: totalLabelAttr)
+            drawRightAligned(invoice.totalWithoutVat!.formatted, at: CGPoint(x: rightEdge, y: result), attributes: boldMonoAttr)
+            result += 8 * PDFMass.ptPerMm
+            for item in invoice.vatItems {
+                "MWST".draw(at: CGPoint(x: PDFMass.marginLeft + contentWidth * 0.50, y: result), withAttributes: totalLabelAttr)
+                drawRightAligned(item.amount.formatted, at: CGPoint(x: rightEdge, y: result), attributes: boldMonoAttr)
+                result += 8 * PDFMass.ptPerMm
+            }
+        }
         "Total".draw(at: CGPoint(x: PDFMass.marginLeft + contentWidth * 0.50, y: result), withAttributes: totalLabelAttr)
         drawRightAligned(invoice.amount.formatted, at: CGPoint(x: rightEdge, y: result), attributes: boldMonoAttr)
         result += 2 * PDFMass.ptPerMm

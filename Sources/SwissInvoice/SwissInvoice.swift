@@ -19,13 +19,13 @@ import UIKit
 /// let pdfData = invoice.pdfData()
 /// let qrImage = invoice.qrCodeImage()
 /// ```
+///
 public struct SwissInvoice: Sendable {
     public let title: String?
     public let creditor: Address
     public let debtor: Address
     public let invoiceDate: Date?
     public let iban: String
-    public let amount: Money
     public let referenceType: ReferenceType
     public let reference: String?
     public let additionalInfo: String?
@@ -43,7 +43,6 @@ public struct SwissInvoice: Sendable {
         debtor: Address,
         invoiceDate: Date? = nil,
         iban: String,
-        amount: Money,
         referenceType: ReferenceType = .none,
         reference: String? = nil,
         additionalInfo: String? = nil,
@@ -58,7 +57,6 @@ public struct SwissInvoice: Sendable {
         self.creditor = creditor
         self.debtor = debtor
         self.iban = iban
-        self.amount = amount
         self.referenceType = referenceType
         self.reference = reference
         self.additionalInfo = additionalInfo
@@ -72,12 +70,37 @@ public struct SwissInvoice: Sendable {
         self.fontName = fontName
         self.fontSize = fontSize
     }
+    
+    public var amount: Money {
+        lineItems.compactMap( \.amount ).first!
+    }
+    
+    public var totalVat: Money? {
+        lineItems.filter( { $0.lineItemType == .vat }).compactMap( \.amount ).first
+    }
+    
+    public var totalWithoutVat: Money? {
+        lineItems.filter( { $0.lineItemType != .vat }).compactMap( \.amount ).first
+    }
+    
+    public var invoiceItems: [InvoiceLineItem] {
+        lineItems.filter( { $0.lineItemType != .vat })
+    }
+    
+    public var vatItems: [InvoiceLineItem] {
+        lineItems.filter( { $0.lineItemType == .vat })
+    }
 
-    // MARK: - Public API
-
-    /// Generates the A4 PDF with invoice details and Swiss QR Bill payment part.
     public func pdfData() -> Data {
         InvoicePDFRenderer.render(invoice: self)
+    }
+    
+    public func hasUnitItems() -> Bool {
+        lineItems.contains(where: { $0.lineItemType == .unitPrice })
+    }
+    
+    public func hasVat() -> Bool {
+        lineItems.contains(where: { $0.lineItemType == .vat })
     }
 
     /// Generates the SPC/0200/1 QR payload string.

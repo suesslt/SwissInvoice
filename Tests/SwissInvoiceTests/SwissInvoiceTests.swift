@@ -8,6 +8,7 @@ struct SwissInvoiceTests {
     private var creditor: Address {
         Address(
             name: "Muster AG",
+            addressAddition: "",
             street: "Bahnhofstrasse",
             houseNumber: "1",
             postalCode: "8001",
@@ -19,6 +20,7 @@ struct SwissInvoiceTests {
     private var debtor: Address {
         Address(
             name: "Hans Mustermann",
+            addressAddition: "",
             street: "Rebenweg",
             houseNumber: "12",
             postalCode: "3000",
@@ -35,8 +37,8 @@ struct SwissInvoiceTests {
         )
         #expect(invoice.creditor.name == "Muster AG")
         #expect(invoice.iban == "CH1230000000000012345")
-        #expect(invoice.amount.amount == Decimal(string: "100.00")!)
-        #expect(invoice.amount.currency == .chf)
+        #expect(invoice.totalAmount.amount == Decimal(string: "100.00")!)
+        #expect(invoice.totalAmount.currency == .chf)
         #expect(invoice.debtor == nil)
         #expect(invoice.referenceType == .none)
         #expect(invoice.reference == nil)
