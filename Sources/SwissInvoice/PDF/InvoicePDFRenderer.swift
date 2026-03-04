@@ -64,7 +64,7 @@ private enum PDFMass {
 
 // MARK: - Font Provider
 
-private struct FontProvider {
+public struct FontProvider {
     let name: String
 
     init(requestedName: String?) {
@@ -127,10 +127,13 @@ private struct InvoiceFontSizes {
 // MARK: - Renderer
 
 /// Renders a complete A4 invoice PDF with Swiss QR Bill payment part and receipt.
-public enum InvoicePDFRenderer {
+public struct InvoicePDFRenderer {
+    var fontprovider: FontProvider = FontProvider(requestedName: "")
+    
     public static func render(invoice: SwissInvoice) -> Data {
         let pageRect = CGRect(x: 0, y: 0, width: PDFMass.pageWidth, height: PDFMass.pageHeight)
         let fonts = FontProvider(requestedName: invoice.fontName)
+        let fontprovider = FontProvider(requestedName: "")
         let sizes = InvoiceFontSizes(body: invoice.fontSize ?? PDFMass.fontBody)
         let slipFonts = FontProvider(requestedName: nil)  // Always Helvetica per SIX spec
         let format = UIGraphicsPDFRendererFormat()
@@ -271,12 +274,18 @@ public enum InvoicePDFRenderer {
                 withAttributes: betreffAttr
             )
             // 1 empty line after Betreff before content
-            result += sizes.body + sizes.body // TODO: Empty line?
+            result += sizes.body + sizes.body  // TODO: Empty line?
         }
         return result
     }
 
-    fileprivate static func drawTrailingText(_ invoice: SwissInvoice, _ maximaleGroesse: CGSize, _ betreffAttr: [NSAttributedString.Key : Any], _ result: CGFloat, _ width: CGFloat) {
+    fileprivate static func drawTrailingText(
+        _ invoice: SwissInvoice,
+        _ maximaleGroesse: CGSize,
+        _ betreffAttr: [NSAttributedString.Key: Any],
+        _ result: CGFloat,
+        _ width: CGFloat
+    ) {
         if let trailingText = invoice.trailingText, !trailingText.isEmpty {
             let rahmen = trailingText.boundingRect(
                 with: maximaleGroesse,
@@ -284,7 +293,7 @@ public enum InvoicePDFRenderer {
                 attributes: betreffAttr,
                 context: nil
             )
-            
+
             let benoetigteHoehe = ceil(rahmen.height)
             let drawRect = CGRect(x: PDFMass.marginLeft, y: result, width: width, height: benoetigteHoehe)
             trailingText.draw(
@@ -295,7 +304,7 @@ public enum InvoicePDFRenderer {
             )
         }
     }
-    
+
     private static func drawContent(
         invoice: SwissInvoice,
         yPosition: CGFloat,
@@ -361,7 +370,7 @@ public enum InvoicePDFRenderer {
         let contentWidth = rightEdge - PDFMass.marginLeft
 
         let headerAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: sizes.small, weight: .bold),
+            .font: fonts.font(size: sizes.small, weight: .bold)
         ]
         let bodyAttr: [NSAttributedString.Key: Any] = [
             .font: fonts.font(size: sizes.body)
@@ -379,7 +388,7 @@ public enum InvoicePDFRenderer {
             let colQuantity = PDFMass.marginLeft + contentWidth * 0.50
             let colUnit = PDFMass.marginLeft + contentWidth * 0.60
             let colAmount = rightEdge
-            
+
             // Table header
             "Description".draw(at: CGPoint(x: colDescription, y: result), withAttributes: headerAttr)
             if invoice.hasUnitItems() {
@@ -434,16 +443,29 @@ public enum InvoicePDFRenderer {
             .font: fonts.font(size: sizes.body, weight: .bold)
         ]
         if invoice.hasVat() {
-            "Total ohne MWST".draw(at: CGPoint(x: PDFMass.marginLeft + contentWidth * 0.50, y: result), withAttributes: totalLabelAttr)
-            drawRightAligned(invoice.totalWithoutVat!.formatted, at: CGPoint(x: rightEdge, y: result), attributes: boldMonoAttr)
+            "Total ohne MWST".draw(
+                at: CGPoint(x: PDFMass.marginLeft + contentWidth * 0.50, y: result),
+                withAttributes: totalLabelAttr
+            )
+            drawRightAligned(
+                invoice.totalWithoutVatAmount!.formatted,
+                at: CGPoint(x: rightEdge, y: result),
+                attributes: boldMonoAttr
+            )
             result += 8 * PDFMass.ptPerMm
             for item in invoice.vatItems {
-                "MWST".draw(at: CGPoint(x: PDFMass.marginLeft + contentWidth * 0.50, y: result), withAttributes: totalLabelAttr)
+                "MWST".draw(
+                    at: CGPoint(x: PDFMass.marginLeft + contentWidth * 0.50, y: result),
+                    withAttributes: totalLabelAttr
+                )
                 drawRightAligned(item.amount.formatted, at: CGPoint(x: rightEdge, y: result), attributes: boldMonoAttr)
                 result += 8 * PDFMass.ptPerMm
             }
         }
-        "Total".draw(at: CGPoint(x: PDFMass.marginLeft + contentWidth * 0.50, y: result), withAttributes: totalLabelAttr)
+        "Total".draw(
+            at: CGPoint(x: PDFMass.marginLeft + contentWidth * 0.50, y: result),
+            withAttributes: totalLabelAttr
+        )
         drawRightAligned(invoice.amount.formatted, at: CGPoint(x: rightEdge, y: result), attributes: boldMonoAttr)
         result += 2 * PDFMass.ptPerMm
         drawHRule(in: ctx, y: result, from: PDFMass.marginLeft, to: rightEdge, lineWidth: 0.3)
@@ -499,13 +521,13 @@ public enum InvoicePDFRenderer {
         }
 
         // Currency & Amount below QR code
-        let headingAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: PDFMass.fontHeading, weight: .regular),
-            .foregroundColor: UIColor.secondaryLabel,
-        ]
-        let monoAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.monospacedDigitFont(size: PDFMass.fontBody, weight: .bold)
-        ]
+//        let headingAttr: [NSAttributedString.Key: Any] = [
+//            .font: fonts.font(size: PDFMass.fontHeading, weight: .regular),
+//            .foregroundColor: UIColor.secondaryLabel,
+//        ]
+//        let monoAttr: [NSAttributedString.Key: Any] = [
+//            .font: fonts.monospacedDigitFont(size: PDFMass.fontBody, weight: .bold)
+//        ]
         let monoSmallAttr: [NSAttributedString.Key: Any] = [
             .font: fonts.monospacedDigitFont(size: PDFMass.fontBody, weight: .regular)
         ]
@@ -514,10 +536,10 @@ public enum InvoicePDFRenderer {
         let rightColX = leftColX + PDFMass.qrCodeSize + 8 * PDFMass.ptPerMm
         var ry = zahlteilY + 10 + 20 * PDFMass.ptPerMm  // align with QR code
 
-        let smallLabelAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: PDFMass.fontSmall + 1, weight: .regular),
-            .foregroundColor: UIColor.secondaryLabel,
-        ]
+//        let smallLabelAttr: [NSAttributedString.Key: Any] = [
+//            .font: fonts.font(size: PDFMass.fontSmall + 1, weight: .regular),
+//            .foregroundColor: UIColor.secondaryLabel,
+//        ]
         let smallLabelBoldAttr: [NSAttributedString.Key: Any] = [
             .font: fonts.font(size: PDFMass.fontSmall + 1, weight: .bold)
         ]
@@ -646,10 +668,10 @@ public enum InvoicePDFRenderer {
         let titleAttr: [NSAttributedString.Key: Any] = [
             .font: fonts.font(size: PDFMass.fontReceiptTitle, weight: .bold)
         ]
-        let labelAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: PDFMass.fontReceiptHeading, weight: .bold),
-            .foregroundColor: UIColor.secondaryLabel,
-        ]
+//        let labelAttr: [NSAttributedString.Key: Any] = [
+//            .font: fonts.font(size: PDFMass.fontReceiptHeading, weight: .bold),
+//            .foregroundColor: UIColor.secondaryLabel,
+//        ]
         let boldAttr: [NSAttributedString.Key: Any] = [
             .font: fonts.font(size: PDFMass.fontReceiptBody, weight: .bold)
         ]
@@ -819,34 +841,24 @@ public enum InvoicePDFRenderer {
     /// Builds address lines from an Address, optionally including the name.
     /// Omits countryCode for CH addresses (domestic).
     private static func buildAddressLines(_ address: Address, includeName: Bool) -> [String] {
-        var lines: [String] = []
+        var result: [String] = []
         if includeName {
-            lines.append(address.name)
+            result.append(address.name)
         }
         if !address.addressAddition.isEmpty {
-            lines.append(address.addressAddition)
+            result.append(address.addressAddition)
         }
         let street = "\(address.street) \(address.houseNumber)".trimmingCharacters(in: .whitespaces)
         if !street.isEmpty {
-            lines.append(street)
+            result.append(street)
         }
         let cityLine = "\(address.postalCode) \(address.city)".trimmingCharacters(in: .whitespaces)
         if !cityLine.isEmpty {
-            lines.append(cityLine)
+            result.append(cityLine)
         }
         if address.countryCode.uppercased() != "CH" && !address.countryCode.isEmpty {
-            lines.append(address.countryCode)
+            result.append(address.countryCode)
         }
-        return lines
-    }
-
-    /// Builds a compact sender line for the Absenderzeile (e.g. "Muster AG, Musterstrasse 1, 3000 Bern").
-    private static func buildSenderLine(_ address: Address) -> String {
-        var parts: [String] = [address.name]
-        let street = "\(address.street) \(address.houseNumber)".trimmingCharacters(in: .whitespaces)
-        if !street.isEmpty { parts.append(street) }
-        let city = "\(address.postalCode) \(address.city)".trimmingCharacters(in: .whitespaces)
-        if !city.isEmpty { parts.append(city) }
-        return parts.joined(separator: ", ")
+        return result
     }
 }

@@ -72,15 +72,15 @@ public struct SwissInvoice: Sendable {
     }
     
     public var amount: Money {
-        lineItems.compactMap( \.amount ).first!
+        lineItems.reduce(Money(amount: Decimal(0), currency: .chf)) { $0 + $1.amount }
     }
     
-    public var totalVat: Money? {
-        lineItems.filter( { $0.lineItemType == .vat }).compactMap( \.amount ).first
+    public var totalVatAmount: Money? {
+        lineItems.filter( { $0.lineItemType == .vat }).reduce(Money(amount: Decimal(0), currency: .chf)) { $0 + $1.amount }
     }
     
-    public var totalWithoutVat: Money? {
-        lineItems.filter( { $0.lineItemType != .vat }).compactMap( \.amount ).first
+    public var totalWithoutVatAmount: Money? {
+        lineItems.filter( { $0.lineItemType != .vat }).reduce(Money(amount: Decimal(0), currency: .chf)) { $0 + $1.amount }
     }
     
     public var invoiceItems: [InvoiceLineItem] {
@@ -116,3 +116,52 @@ public struct SwissInvoice: Sendable {
         return QRCodeGenerator.generateImage(payload: payload, size: size)
     }
 }
+
+public struct InvoiceLineItem: Sendable {
+    public let lineItemType: LineItemType
+    public let description: String
+    public let quantity: Decimal?
+    public let unit: String?
+    public let unitPrice: Money?
+    public let vatRate: Decimal?
+    public let amount: Money
+   
+
+    public init(
+        lineItemType: LineItemType,
+        description: String,
+        quantity: Decimal? = nil,
+        unit: String? = nil,
+        unitPrice: Money? = nil,
+        vatRate: Decimal? = nil,
+        amount: Money
+    ) {
+        self.lineItemType = lineItemType
+        self.description = description
+        self.quantity = quantity
+        self.unit = unit
+        self.unitPrice = unitPrice
+        self.vatRate = vatRate
+        self.amount = amount
+    }
+}
+
+public enum LineItemType: String, CaseIterable, Identifiable, Sendable {
+    case fixedPrice
+    case unitPrice
+    case vat
+    
+    public var id: String { self.rawValue }
+    
+    public var label: String {
+        switch self {
+        case .fixedPrice:
+            return "Netto-Betrag"
+        case .unitPrice:
+            return "Stückpreis"
+        case .vat:
+            return "Mehrwertsteuer"
+        }
+    }
+}
+

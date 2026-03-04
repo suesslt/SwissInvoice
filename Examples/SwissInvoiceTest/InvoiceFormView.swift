@@ -45,15 +45,15 @@ struct InvoiceFormView: View {
         "Besten Dank für Ihr Vertrauen und den Auftrag.\n\nMit freundlichen Grüssen,\nThomas Süssli"
 
     // Line Items
-    @State private var lineItems: [LineItemEntry] = [
-        LineItemEntry(type: .unitPrice ,description: "Vorbereitungszeit", quantity: "10", unit: "h", unitPrice: "3000.00"),
-        LineItemEntry(
+    @State private var lineItems: [LineItemViewRow] = [
+        LineItemViewRow(type: .unitPrice ,description: "Vorbereitungszeit", quantity: "10", unit: "h", unitPrice: "3000.00"),
+        LineItemViewRow(
             type: .fixedPrice,
             description: "Cyber Awareness Training, 2 Sessions, am 2. März 2026",
-            totalPrice: "6000.00"
+            amount: "6000.00"
         ),
-        LineItemEntry(type: .vat, description: "", quantity: "", unit: "", totalPrice: "674.38", vatRate: "5.6"),
-        LineItemEntry(type: .vat, description: "", quantity: "", unit: "", totalPrice: "74.87", vatRate: "8.1"),
+        LineItemViewRow(type: .vat, description: "", quantity: "", unit: "", vatRate: "5.6", amount: "674.38"),
+        LineItemViewRow(type: .vat, description: "", quantity: "", unit: "", vatRate: "8.1", amount: "74.87"),
     ]
 
     // PDF preview
@@ -188,7 +188,7 @@ struct InvoiceFormView: View {
                 .onDelete { lineItems.remove(atOffsets: $0) }
 
                 Button("Add Line Item") {
-                    lineItems.append(LineItemEntry())
+                    lineItems.append(LineItemViewRow())
                 }
             }
 
@@ -261,7 +261,6 @@ struct InvoiceFormView: View {
         )
 
         let items: [InvoiceLineItem] = lineItems.compactMap { entry in
-//            guard !entry.description.isEmpty else { return nil }
             let qty = Decimal(string: entry.quantity)
             let unitPrice =
                 entry.unitPrice.isEmpty
@@ -273,11 +272,14 @@ struct InvoiceFormView: View {
             let itemAmount: Money
             if entry.type == .unitPrice, let q = qty, let u = unitPrice {
                 itemAmount = u * q
-            } else if entry.type == .fixedPrice, let u = unitPrice {
-                itemAmount = u
+            } else if entry.type == .fixedPrice, entry.amount.isEmpty == false {
+                itemAmount = Money(
+                    amount: Decimal(string: entry.amount) ?? 0,
+                    currency: selectedCurrency
+                )
             } else if entry.type == .vat {
                 itemAmount = Money(
-                    amount: Decimal(string: entry.totalPrice) ?? 0,
+                    amount: Decimal(string: entry.amount) ?? 0,
                     currency: selectedCurrency
                 )
             } else {
@@ -287,12 +289,13 @@ struct InvoiceFormView: View {
                 )
             }
             return InvoiceLineItem(
+                lineItemType: entry.type,
                 description: entry.description,
                 quantity: qty,
                 unit: entry.unit.isEmpty ? nil : entry.unit,
                 unitPrice: unitPrice,
-                amount: itemAmount,
-                lineItemType: entry.type
+                vatRate: Decimal(string: entry.vatRate),
+                amount: itemAmount
             )
         }
 
@@ -316,13 +319,13 @@ struct InvoiceFormView: View {
     }
 }
 
-struct LineItemEntry: Identifiable {
+struct LineItemViewRow: Identifiable {
     let id = UUID()
     var type: LineItemType = .fixedPrice
     var description: String = ""
     var quantity: String = ""
     var unit: String = ""
     var unitPrice: String = ""
-    var totalPrice: String = ""
     var vatRate: String = ""
+    var amount: String = ""
 }
