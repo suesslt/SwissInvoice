@@ -18,6 +18,7 @@ private enum PDFMass {
     static let marginRight: CGFloat = 12 * ptPerMm  // SN 10130: 12 mm
     static let marginTop: CGFloat = 12 * ptPerMm
     static let usablePageWidth: CGFloat = pageWidth - marginLeft - marginRight
+    static let rightUsableBorder: CGFloat = pageWidth - marginRight
 
     // SN 10130:2026 - Adressfeld
     static let adressfeldLeft: CGFloat = 117 * ptPerMm  // SN 10130: 117 mm
@@ -29,20 +30,28 @@ private enum PDFMass {
     static let topInfoblock: CGFloat = 38 * ptPerMm
     static let topContent: CGFloat = 97 * ptPerMm
     static let leitwoerterMinY: CGFloat = 111 * ptPerMm  // 314.65 pt (97 + 14 mm)
+    static let leitwoerterY = PDFMass.topInfoblock + 28 * PDFMass.ptPerMm
 
     // Falzmarke (fold/punch marks)
     static let lochmarke: CGFloat = 148.5 * ptPerMm  // 420.94 pt
+    
+    // Tabulatoren
+    static let quantityColumn: CGFloat = 120 * ptPerMm
+    static let unitColumn: CGFloat = 135 * ptPerMm
+    static let unitPriceColumn: CGFloat = 164 * ptPerMm
+    static let leitwoerterColumn: CGFloat = PDFMass.marginLeft + 28 * PDFMass.ptPerMm
 
     // Payment part (SIX Swiss QR Bill specification)
     static let zahlteilHeight: CGFloat = 105 * ptPerMm
     static let qrCodeSize: CGFloat = 46 * ptPerMm  // 130.39 pt — exactly 46 mm
-    static let qrLeft: CGFloat = 5 * ptPerMm
-    static let qrTop: CGFloat = 17 * ptPerMm
+    static let qrLeft: CGFloat = 68 * ptPerMm
+    static let qrTop: CGFloat = 210 * ptPerMm
 
     // Receipt (Empfangsschein) — 60mm wide, left side
     static let receiptWidth: CGFloat = 62 * ptPerMm
     // Payment part (Zahlteil) — 150mm wide, right side
     static let paymentPartWidth: CGFloat = 148 * ptPerMm
+    static let annahmestelle: CGFloat = 59 * ptPerMm
 
     // Vertical separator between receipt and payment part
     static let verticalSepX: CGFloat = 62 * ptPerMm
@@ -62,291 +71,210 @@ private enum PDFMass {
     static let lineSpacing: CGFloat = 2
 }
 
-// MARK: - Font Provider
+public enum FontType: String, CaseIterable {
+    case title = "Title"
+    case standard = "Standard"
+    case standardFixed = "Standard fixed"
+    case standardSmall = "Standard small"
+    case subject = "Subject"
+    case titleInvoiceLines = "Title Invoice Lines"
+    case standardBold = "Standard bold"
+    case titleReceiver = "Title Receiver"
+    case headerReceiver = "Header Receiver"
+    case textReceiver = "Text Receiver"
+    case titlePayment = "Title Payment"
+    case headerPayment = "Header Payment"
+    case textPayment = "Text Payment"
+    case amountPayment = "Amount Payment"
+    case amountReceiver = "Amount Receiver"
 
-public struct FontProvider {
-    let name: String
-
-    init(requestedName: String?) {
-        if let requested = requestedName,
-            UIFont(name: requested, size: PDFMass.fontBody) != nil
-        {
-            self.name = requested
-        } else {
-            self.name = "Helvetica"
+    // Schriftgröße
+    var fontSize: CGFloat? {
+        switch self {
+        case .title: return 14
+        case .standardFixed, .titleReceiver, .titlePayment: return 11
+        case .textPayment, .amountPayment: return 10
+        case .standardSmall, .titleInvoiceLines, .textReceiver, .headerPayment, .amountReceiver: return 8
+        case .headerReceiver: return 6
+        default: return nil  // Für "Standard", "Subject", "Standard bold" keine Angabe im Bild
         }
     }
 
-    func font(size: CGFloat, weight: UIFont.Weight) -> UIFont {
-        let base =
-            UIFont(name: name, size: size)
-            ?? UIFont(name: "Helvetica", size: size)!
-        // For semibold and above, resolve the actual bold face via symbolic traits.
-        // Using addingAttributes with .weight does NOT switch font faces for named fonts.
-        guard weight >= .semibold else { return base }
-        guard let boldDescriptor = base.fontDescriptor.withSymbolicTraits(.traitBold) else {
-            return base
+    // Schriftschnitt (Bold oder Normal)
+    var isBold: Bool {
+        switch self {
+        case .standard, .standardFixed, .standardSmall, .textReceiver, .textPayment, .amountPayment, .amountReceiver:
+            return false
+        default:
+            return true
         }
-        return UIFont(descriptor: boldDescriptor, size: size)
     }
 
-    func font(size: CGFloat) -> UIFont {
-        font(size: size, weight: .regular)
+    // Monospace-Eigenschaft
+    var isMonospaced: Bool {
+        switch self {
+        case .amountPayment, .amountReceiver:
+            return true
+        default:
+            return false
+        }
     }
 
-    func monospacedDigitFont(size: CGFloat, weight: UIFont.Weight) -> UIFont {
-        let base = font(size: size, weight: weight)
-        let features: [[UIFontDescriptor.FeatureKey: Any]] = [
-            [
-                .type: kNumberSpacingType,
-                .selector: kMonospacedNumbersSelector,
-            ]
-        ]
-        let descriptor = base.fontDescriptor.addingAttributes(
-            [.featureSettings: features]
-        )
-        return UIFont(descriptor: descriptor, size: size)
+    // Schriftart (Name)
+    var fontName: String? {
+        switch self {
+        case .titleReceiver, .headerReceiver, .textReceiver, .titlePayment, .headerPayment, .textPayment,
+            .amountPayment, .amountReceiver:
+            return "Helvetica"
+        default:
+            return nil  // Systemspezifisch oder Standard
+        }
     }
-}
-
-// MARK: - Invoice Font Sizes (upper part only)
-
-/// Derives heading, body, and small font sizes from a single base body size.
-private struct InvoiceFontSizes {
-    let heading: CGFloat
-    let body: CGFloat
-    let small: CGFloat
-
-    init(body: CGFloat) {
-        self.body = body
-        self.heading = max(body - 2, 8)
-        self.small = max(body - 4, 7)
+    
+    var lineSpacing: CGFloat {
+        switch self {
+        case .textReceiver, .headerReceiver, .textPayment, .headerPayment:
+            return 1.1
+        default:
+            return 1.2
+        }
     }
 }
-
-// MARK: - Renderer
 
 /// Renders a complete A4 invoice PDF with Swiss QR Bill payment part and receipt.
 public struct InvoicePDFRenderer {
-    var fontprovider: FontProvider = FontProvider(requestedName: "")
-    
-    public static func render(invoice: SwissInvoice) -> Data {
-        let pageRect = CGRect(x: 0, y: 0, width: PDFMass.pageWidth, height: PDFMass.pageHeight)
-        let fonts = FontProvider(requestedName: invoice.fontName)
-        let fontprovider = FontProvider(requestedName: "")
-        let sizes = InvoiceFontSizes(body: invoice.fontSize ?? PDFMass.fontBody)
-        let slipFonts = FontProvider(requestedName: nil)  // Always Helvetica per SIX spec
-        let format = UIGraphicsPDFRendererFormat()
-        let renderer = UIGraphicsPDFRenderer(bounds: pageRect, format: format)
+    private let fontName: String
+    private let fontSize: CGFloat
+
+    public init(fontName: String?, fontSize: CGFloat?) {
+        self.fontName = fontName ?? "Helvetica"
+        self.fontSize = fontSize ?? 10
+    }
+
+    public func render(invoice: SwissInvoice) -> Data {
+        let renderer = UIGraphicsPDFRenderer(
+            bounds: CGRect(x: 0, y: 0, width: PDFMass.pageWidth, height: PDFMass.pageHeight),
+            format: UIGraphicsPDFRendererFormat()
+        )
         return renderer.pdfData { context in
             context.beginPage()
             let cgContext = context.cgContext
             cgContext.scaleBy(x: 1.004, y: 1.0)  // It's a detail but makes it perfect
-            drawBriefkopf(invoice: invoice, fonts: fonts, in: cgContext)
-            drawAdressfeld(invoice: invoice, fonts: fonts, sizes: sizes, in: cgContext)
-            drawLeitwoerter(invoice: invoice, fonts: fonts, sizes: sizes, in: cgContext)
-            let yPosition: CGFloat = drawSubject(invoice: invoice, fonts: fonts, sizes: sizes, in: cgContext)
-            drawContent(invoice: invoice, yPosition: yPosition, fonts: fonts, sizes: sizes, in: cgContext)
+            drawBriefkopf(invoice: invoice)
+            drawAdressfeld(invoice: invoice)
+            _ = drawLeitwoerter(invoice: invoice)
+            var yPosition : CGFloat = PDFMass.topContent
+            yPosition += drawSubject(invoice: invoice, yPosition: yPosition)
+            yPosition += drawEmptyLine(fontType: FontType.standard)
+            drawContent(ctx: cgContext, invoice: invoice, yPosition: yPosition)
+            drawPaymentPart(invoice: invoice, in: cgContext)
+            drawReceipt(invoice: invoice, in: cgContext)
             drawFalzmarken(in: cgContext)
-            drawPaymentPart(invoice: invoice, fonts: slipFonts, in: cgContext, pageRect: pageRect)
-            drawReceipt(invoice: invoice, fonts: slipFonts, in: cgContext, pageRect: pageRect)
         }
     }
 
-    private static func drawBriefkopf(
-        invoice: SwissInvoice,
-        fonts: FontProvider,
-        in ctx: CGContext
-    ) {
+    private func drawBriefkopf(invoice: SwissInvoice) {
         var y: CGFloat = PDFMass.marginTop
-        let headerFontSize: CGFloat = PDFMass.fontTitle
-
-        let nameAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: headerFontSize, weight: .bold)
-        ]
-        invoice.creditor.name.draw(at: CGPoint(x: PDFMass.marginLeft, y: y), withAttributes: nameAttr)
-        y += headerFontSize + PDFMass.lineSpacing + PDFMass.lineSpacing
-
-        let addrAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: PDFMass.fontTitleAddress),
-            .foregroundColor: UIColor.darkGray,
-        ]
+        y += draw(invoice.creditor.name, at: CGPoint(x: PDFMass.marginLeft, y: y), fontType: .title)
         let creditorLines = buildAddressLines(invoice.creditor, includeName: false)
         for line in creditorLines {
-            line.draw(at: CGPoint(x: PDFMass.marginLeft, y: y), withAttributes: addrAttr)
-            y += PDFMass.fontTitleAddress + PDFMass.lineSpacing
+            y += draw(line, at: CGPoint(x: PDFMass.marginLeft, y: y), fontType: .standard)
         }
-
         if let title = invoice.title {
-            let titleAttr: [NSAttributedString.Key: Any] = [
-                .font: fonts.font(size: headerFontSize, weight: .bold)
-            ]
-            let titleWidth = (title as NSString).size(withAttributes: titleAttr).width
-            (title as NSString).draw(
-                at: CGPoint(x: PDFMass.pageWidth - PDFMass.marginRight - titleWidth, y: PDFMass.marginTop),
-                withAttributes: titleAttr
+            _ = drawRightAligned(
+                title,
+                at: CGPoint(x: PDFMass.pageWidth - PDFMass.marginRight, y: PDFMass.marginTop),
+                fontType: .title
             )
         }
     }
 
     // MARK: - Adressfeldbereich (38 – 97 mm) – Rechtsadressierung per SN 10130:2026 §4.3
-    private static func drawAdressfeld(
-        invoice: SwissInvoice,
-        fonts: FontProvider,
-        sizes: InvoiceFontSizes,
-        in ctx: CGContext
-    ) {
-        let addressAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: PDFMass.fontBody)
-        ]
-        let maxWidth = PDFMass.adressfeldWidth - 8 * PDFMass.ptPerMm
+    private func drawAdressfeld(invoice: SwissInvoice) {
         let leftX = PDFMass.adressfeldLeft + 8 * PDFMass.ptPerMm
         var leftY = PDFMass.adressfeldTop
 
-        // Center horizontally
-        let creditorLines = buildAddressLines(invoice.debtor, includeName: true)
-        let nrLines = creditorLines.count
+        // Center horizontally TODO: Move to Method
+        let debtorLines = buildAddressLines(invoice.debtor, includeName: true)
+        let nrLines = debtorLines.count
         let textHeight = nrLines * Int(PDFMass.fontBody) + (nrLines - 1) * 2
         let yOffset = (PDFMass.adressfeldHeight - CGFloat(textHeight)) / PDFMass.lineSpacing
         leftY += yOffset
 
-        // Draw
-        for line in creditorLines {
-            drawWrapped(line, at: CGPoint(x: leftX, y: leftY), maxWidth: maxWidth, attributes: addressAttr)
-            leftY += PDFMass.fontBody + PDFMass.lineSpacing
+        for line in debtorLines {
+            leftY += draw(
+                line,
+                at: CGPoint(x: leftX, y: leftY),
+                fontType: .standard
+            )
         }
     }
 
-    private static func drawLeitwoerter(
-        invoice: SwissInvoice,
-        fonts: FontProvider,
-        sizes: InvoiceFontSizes,
-        in ctx: CGContext
-    ) {
-        var yPosition = PDFMass.topInfoblock + 40 * PDFMass.ptPerMm
-        let xTabPosition = PDFMass.marginLeft + 24 * PDFMass.ptPerMm
-        let labelAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: sizes.small),
-            .foregroundColor: UIColor.black,
-        ]
-        let valueAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: sizes.small)
-        ]
+    private func drawLeitwoerter(invoice: SwissInvoice) -> CGFloat {
+        var result = 0.0
+        let yPosition = PDFMass.leitwoerterY
         if let date = invoice.invoiceDate {
-            "Rechnungsdatum:".draw(at: CGPoint(x: PDFMass.marginLeft, y: yPosition), withAttributes: labelAttr)
-            let formatter = DateFormatter()
+            _ = draw("Rechnungsdatum:", at: CGPoint(x: PDFMass.marginLeft, y: yPosition + result), fontType: .standardSmall)
+            let formatter = DateFormatter()  // TODO: Move to Util Class
             formatter.dateStyle = .long
             formatter.locale = Locale(identifier: "de_CH")
             let dateStr = formatter.string(from: date)
-            dateStr.draw(at: CGPoint(x: xTabPosition, y: yPosition), withAttributes: valueAttr)
-            yPosition += (sizes.small + 2)
+            result += draw(dateStr, at: CGPoint(x: PDFMass.leitwoerterColumn, y: yPosition + result), fontType: .standardSmall)
         }
         if let reference = invoice.reference, !reference.isEmpty {
-            "Referenz:".draw(at: CGPoint(x: PDFMass.marginLeft, y: yPosition), withAttributes: labelAttr)
-            reference.draw(at: CGPoint(x: xTabPosition, y: yPosition), withAttributes: valueAttr)
-            yPosition += (sizes.small + 2)
+            _ = draw("Referenz:", at: CGPoint(x: PDFMass.marginLeft, y: yPosition + result), fontType: .standardSmall)
+            result += draw(reference, at: CGPoint(x: PDFMass.leitwoerterColumn, y: yPosition + result), fontType: .standardSmall)
         }
         if let additionalInfo = invoice.additionalInfo, !additionalInfo.isEmpty {
-            "Zusatzinformation:".draw(at: CGPoint(x: PDFMass.marginLeft, y: yPosition), withAttributes: labelAttr)
-            additionalInfo.draw(at: CGPoint(x: xTabPosition, y: yPosition), withAttributes: valueAttr)
-            yPosition += (sizes.small + 2)
+            _ = draw("Zusatzinformation:", at: CGPoint(x: PDFMass.marginLeft, y: yPosition + result), fontType: .standardSmall)
+            result += draw(additionalInfo, at: CGPoint(x: PDFMass.leitwoerterColumn, y: yPosition + result), fontType: .standardSmall)
         }
         if let vatNr = invoice.vatNr, !vatNr.isEmpty {
-            "UID (MWST):".draw(at: CGPoint(x: PDFMass.marginLeft, y: yPosition), withAttributes: labelAttr)
-            vatNr.draw(at: CGPoint(x: xTabPosition, y: yPosition), withAttributes: valueAttr)
-            yPosition += (sizes.small + 2)
-        }
-    }
-
-    private static func drawSubject(
-        invoice: SwissInvoice,
-        fonts: FontProvider,
-        sizes: InvoiceFontSizes,
-        in ctx: CGContext
-    ) -> CGFloat {
-        var result = PDFMass.topContent
-        if let subject = invoice.subject, !subject.isEmpty {
-            let betreffAttr: [NSAttributedString.Key: Any] = [
-                .font: fonts.font(size: sizes.body, weight: .bold)
-            ]
-            (subject as NSString).draw(
-                at: CGPoint(x: PDFMass.marginLeft, y: result),
-                withAttributes: betreffAttr
-            )
-            // 1 empty line after Betreff before content
-            result += sizes.body + sizes.body  // TODO: Empty line?
+            _ = draw("UID (MWST):", at: CGPoint(x: PDFMass.marginLeft, y: yPosition + result), fontType: .standardSmall)
+            result += draw(vatNr, at: CGPoint(x: PDFMass.leitwoerterColumn, y: yPosition + result), fontType: .standardSmall)
         }
         return result
     }
 
-    fileprivate static func drawTrailingText(
-        _ invoice: SwissInvoice,
-        _ maximaleGroesse: CGSize,
-        _ betreffAttr: [NSAttributedString.Key: Any],
-        _ result: CGFloat,
-        _ width: CGFloat
-    ) {
+    private func drawSubject(invoice: SwissInvoice, yPosition: CGFloat) -> CGFloat {
+        var result = 0.0
+        if let subject = invoice.subject, !subject.isEmpty {
+            result += draw(subject, at: CGPoint(x: PDFMass.marginLeft, y: yPosition), fontType: .subject)
+        }
+        return result
+    }
+
+    private func drawTrailingText(invoice: SwissInvoice, yPosition: CGFloat) -> CGFloat {
+        var result = 0.0
         if let trailingText = invoice.trailingText, !trailingText.isEmpty {
-            let rahmen = trailingText.boundingRect(
-                with: maximaleGroesse,
-                options: [.usesLineFragmentOrigin, .usesFontLeading],
-                attributes: betreffAttr,
-                context: nil
-            )
-
-            let benoetigteHoehe = ceil(rahmen.height)
-            let drawRect = CGRect(x: PDFMass.marginLeft, y: result, width: width, height: benoetigteHoehe)
-            trailingText.draw(
-                with: drawRect,
-                options: [.usesLineFragmentOrigin, .usesFontLeading],
-                attributes: betreffAttr,
-                context: nil
+            result += drawEmptyLine(fontType: FontType.standard)
+            result += drawMultiline(
+                trailingText,
+                at: CGPoint(x: PDFMass.marginLeft, y: yPosition + result),
+                width: PDFMass.usablePageWidth,
+                fontType: .standard
             )
         }
+        return result
     }
 
-    private static func drawContent(
-        invoice: SwissInvoice,
-        yPosition: CGFloat,
-        fonts: FontProvider,
-        sizes: InvoiceFontSizes,
-        in ctx: CGContext
-    ) {
-        var result = yPosition
-        let betreffAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: PDFMass.fontBody)
-        ]
-        let width: CGFloat = PDFMass.pageWidth - PDFMass.marginLeft - PDFMass.marginRight
-        let maximaleGroesse = CGSize(width: width, height: CGFloat.greatestFiniteMagnitude)
+    private func drawContent(ctx: CGContext, invoice: SwissInvoice, yPosition: CGFloat) {
+        var result = 0.0
         if let leadingText = invoice.leadingText, !leadingText.isEmpty {
-            let rahmen = leadingText.boundingRect(
-                with: maximaleGroesse,
-                options: [.usesLineFragmentOrigin, .usesFontLeading],
-                attributes: betreffAttr,
-                context: nil
+            result += drawMultiline(
+                leadingText,
+                at: CGPoint(x: PDFMass.marginLeft, y: yPosition + result),
+                width: PDFMass.usablePageWidth,
+                fontType: .standard
             )
-            let benoetigteHoehe = ceil(rahmen.height)
-            let drawRect = CGRect(x: PDFMass.marginLeft, y: result, width: width, height: benoetigteHoehe)
-            leadingText.draw(
-                with: drawRect,
-                options: [.usesLineFragmentOrigin, .usesFontLeading],
-                attributes: betreffAttr,
-                context: nil
-            )
-            result += benoetigteHoehe + 2
+            result += drawEmptyLine(fontType: FontType.standard)
         }
-        result = drawLineItems(
-            invoice: invoice,
-            fonts: fonts,
-            sizes: sizes,
-            in: ctx,
-            yPosition: result
-        )
-        drawTrailingText(invoice, maximaleGroesse, betreffAttr, result, width)
+        result += drawLineItems(ctx: ctx, invoice: invoice, yPosition: yPosition + result)
+        _ = drawTrailingText(invoice: invoice, yPosition: yPosition + result)
     }
 
-    private static func drawFalzmarken(in ctx: CGContext) {
-        let markLength: CGFloat = 4 * PDFMass.ptPerMm  // 4 mm mark
+    private func drawFalzmarken(in ctx: CGContext) {
+        let markLength: CGFloat = 8 * PDFMass.ptPerMm  // 4 mm mark
         ctx.saveGState()
         ctx.setStrokeColor(UIColor.lightGray.cgColor)
         ctx.setLineWidth(0.3)
@@ -358,145 +286,100 @@ public struct InvoicePDFRenderer {
 
     // MARK: - Line Items Table
 
-    private static func drawLineItems(
-        invoice: SwissInvoice,
-        fonts: FontProvider,
-        sizes: InvoiceFontSizes,
-        in ctx: CGContext,
-        yPosition: CGFloat
-    ) -> CGFloat {
-        var result = yPosition + 10 * PDFMass.ptPerMm
-        let rightEdge = PDFMass.pageWidth - PDFMass.marginRight
-        let contentWidth = rightEdge - PDFMass.marginLeft
-
-        let headerAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: sizes.small, weight: .bold)
-        ]
-        let bodyAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: sizes.body)
-        ]
-        let monoAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.monospacedDigitFont(size: sizes.body, weight: .regular)
-        ]
-        let boldMonoAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.monospacedDigitFont(size: sizes.body, weight: .bold)
-        ]
-
+    private func drawLineItems(ctx: CGContext, invoice: SwissInvoice, yPosition: CGFloat) -> CGFloat {
+        var result = 0.0
         if !invoice.lineItems.isEmpty {
-            // Column positions
-            let colDescription = PDFMass.marginLeft
-            let colQuantity = PDFMass.marginLeft + contentWidth * 0.50
-            let colUnit = PDFMass.marginLeft + contentWidth * 0.60
-            let colAmount = rightEdge
-
             // Table header
-            "Description".draw(at: CGPoint(x: colDescription, y: result), withAttributes: headerAttr)
+            _ = draw("Description", at: CGPoint(x: PDFMass.marginLeft, y: yPosition + result), fontType: .titleInvoiceLines)
             if invoice.hasUnitItems() {
-                "Qty".draw(at: CGPoint(x: colQuantity, y: result), withAttributes: headerAttr)
-                "Unit".draw(at: CGPoint(x: colUnit, y: result), withAttributes: headerAttr)
-                drawRightAligned("Unit Price", at: CGPoint(x: colAmount - 60, y: result), attributes: headerAttr)
+                _ = draw("Qty", at: CGPoint(x: PDFMass.quantityColumn, y: yPosition + result), fontType: .titleInvoiceLines)
+                _ = draw("Unit", at: CGPoint(x: PDFMass.unitColumn, y: yPosition + result), fontType: .titleInvoiceLines)
+                _ = drawRightAligned(
+                    "Unit Price",
+                    at: CGPoint(x: PDFMass.unitPriceColumn, y: yPosition + result),
+                    fontType: .titleInvoiceLines
+                )
             }
-            drawRightAligned("Amount", at: CGPoint(x: colAmount, y: result), attributes: headerAttr)
-            result += sizes.small + 4
+            result += drawRightAligned("Amount", at: CGPoint(x: PDFMass.rightUsableBorder, y: yPosition + result), fontType: .titleInvoiceLines)
 
-            drawHRule(in: ctx, y: result, from: PDFMass.marginLeft, to: rightEdge, lineWidth: 0.3)
-            result += 4
+            result += 2
+            drawHRule(ctx: ctx, y: yPosition + result, from: PDFMass.marginLeft, to: PDFMass.rightUsableBorder, lineWidth: 0.3)
+            result += 2
 
             // Line items
             for item in invoice.invoiceItems {
-                (item.description as NSString).draw(
-                    in: CGRect(
-                        x: colDescription,
-                        y: result,
-                        width: colQuantity - colDescription - 4,
-                        height: sizes.body + 4
-                    ),
-                    withAttributes: bodyAttr
-                )
-
+                _ = draw(item.description, at: CGPoint(x: PDFMass.marginLeft, y: yPosition + result), fontType: .standard)
                 if item.lineItemType == .unitPrice {
                     if let qty = item.quantity {
-                        let qtyStr = "\(qty)"
-                        qtyStr.draw(at: CGPoint(x: colQuantity, y: result), withAttributes: monoAttr)
+                        _ = draw(qty.description, at: CGPoint(x: PDFMass.quantityColumn, y: yPosition + result), fontType: .standard)
                     }
                     if let unit = item.unit {
-                        unit.draw(at: CGPoint(x: colUnit, y: result), withAttributes: bodyAttr)
+                        _ = draw(unit, at: CGPoint(x: PDFMass.unitColumn, y: yPosition + result), fontType: .standard)
                     }
                     if let unitPrice = item.unitPrice {
-                        drawRightAligned(
-                            unitPrice.formattedShort,
-                            at: CGPoint(x: colAmount - 60, y: result),
-                            attributes: monoAttr
+                        _ = drawRightAligned(
+                            unitPrice.formatted,
+                            at: CGPoint(x: PDFMass.unitPriceColumn, y: yPosition + result),
+                            fontType: .standard
                         )
                     }
                 }
-
-                drawRightAligned(item.amount.formattedShort, at: CGPoint(x: colAmount, y: result), attributes: monoAttr)
-                result += sizes.body + 4
-            }
-
-            // Separator before total
-            drawHRule(in: ctx, y: result, from: PDFMass.marginLeft, to: rightEdge, lineWidth: 0.3)
-            result += 6
-        }
-        let totalLabelAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: sizes.body, weight: .bold)
-        ]
-        if invoice.hasVat() {
-            "Total ohne MWST".draw(
-                at: CGPoint(x: PDFMass.marginLeft + contentWidth * 0.50, y: result),
-                withAttributes: totalLabelAttr
-            )
-            drawRightAligned(
-                invoice.totalWithoutVatAmount!.formatted,
-                at: CGPoint(x: rightEdge, y: result),
-                attributes: boldMonoAttr
-            )
-            result += 8 * PDFMass.ptPerMm
-            for item in invoice.vatItems {
-                "MWST".draw(
-                    at: CGPoint(x: PDFMass.marginLeft + contentWidth * 0.50, y: result),
-                    withAttributes: totalLabelAttr
+                result += drawRightAligned(
+                    item.amount.formatted,
+                    at: CGPoint(x: PDFMass.rightUsableBorder, y: yPosition + result),
+                    fontType: .standard
                 )
-                drawRightAligned(item.amount.formatted, at: CGPoint(x: rightEdge, y: result), attributes: boldMonoAttr)
-                result += 8 * PDFMass.ptPerMm
+            }
+            result += 2
+            drawHRule(ctx: ctx, y: yPosition + result, from: PDFMass.marginLeft, to: PDFMass.rightUsableBorder, lineWidth: 0.3)
+            result += 2
+        }
+        if invoice.hasVat() {
+            _ = draw(
+                "Total ohne MWST",
+                at: CGPoint(x: PDFMass.quantityColumn, y: yPosition + result),
+                fontType: .standardBold
+            )
+            result += drawRightAligned(
+                invoice.totalWithoutVatAmount!.formatted,
+                at: CGPoint(x: PDFMass.rightUsableBorder, y: yPosition + result),
+                fontType: .standardBold
+            )
+            for item in invoice.vatItems {
+                _ = draw(
+                    "MWST " + item.vatRate!.formatted() + "%",
+                    at: CGPoint(x: PDFMass.quantityColumn, y: yPosition + result),
+                    fontType: .standardBold
+                )
+                result += drawRightAligned(
+                    item.amount.formatted,
+                    at: CGPoint(x: PDFMass.rightUsableBorder, y: yPosition + result),
+                    fontType: .standardBold
+                )
             }
         }
-        "Total".draw(
-            at: CGPoint(x: PDFMass.marginLeft + contentWidth * 0.50, y: result),
-            withAttributes: totalLabelAttr
+        _ = draw("Total", at: CGPoint(x: PDFMass.quantityColumn, y: yPosition + result), fontType: .standardBold)
+        result += drawRightAligned(
+            invoice.amount.formatted,
+            at: CGPoint(x: PDFMass.rightUsableBorder, y: yPosition + result),
+            fontType: .standardBold
         )
-        drawRightAligned(invoice.amount.formatted, at: CGPoint(x: rightEdge, y: result), attributes: boldMonoAttr)
-        result += 2 * PDFMass.ptPerMm
-        drawHRule(in: ctx, y: result, from: PDFMass.marginLeft, to: rightEdge, lineWidth: 0.3)
-        result += 8 * PDFMass.ptPerMm
+        result += 2
+        drawHRule(ctx: ctx, y: yPosition + result, from: PDFMass.quantityColumn, to: PDFMass.rightUsableBorder, lineWidth: 0.3)
+        result += 1
+        drawHRule(ctx: ctx, y: yPosition + result, from: PDFMass.quantityColumn, to: PDFMass.rightUsableBorder, lineWidth: 0.3)
         return result
     }
 
     // MARK: - Payment Part (Zahlteil) — right 148mm
 
-    private static func drawPaymentPart(invoice: SwissInvoice, fonts: FontProvider, in ctx: CGContext, pageRect: CGRect)
-    {
-        let zahlteilY = pageRect.height - PDFMass.zahlteilHeight
-
-        let maxWidth = PDFMass.paymentPartWidth - 10 * PDFMass.ptPerMm
-
-        // Horizontal dashed separator with scissors
-        drawZahlteilSeparator(in: ctx, y: zahlteilY, pageRect: pageRect)
-
-        // Vertical dashed separator between receipt and payment part
-        drawVerticalSeparator(in: ctx, x: PDFMass.verticalSepX, fromY: zahlteilY, toY: pageRect.height)
-
-        let titleAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: 11, weight: .bold)
-        ]
-
-        // Left column: QR code + Currency/Amount
+    private func drawPaymentPart(invoice: SwissInvoice, in ctx: CGContext) {
+        let zahlteilY = PDFMass.pageHeight - PDFMass.zahlteilHeight
+        drawZahlteilSeparator(in: ctx, y: zahlteilY)
+        drawVerticalSeparator(in: ctx, x: PDFMass.verticalSepX, fromY: zahlteilY, toY: PDFMass.pageHeight)
         let leftColX = PDFMass.verticalSepX + 5 * PDFMass.ptPerMm
         var y = zahlteilY + 10
-
-        "Zahlteil".draw(at: CGPoint(x: leftColX, y: y), withAttributes: titleAttr)
-        y += 12 * PDFMass.ptPerMm
+        y += draw("Zahlteil", at: CGPoint(x: leftColX, y: y), fontType: .titlePayment)
 
         // QR Code (exactly 46mm per SIX spec, modules only + vector Swiss Cross)
         // The PDF context renders the image ~4.5% smaller than the specified rect.
@@ -509,8 +392,8 @@ public struct InvoicePDFRenderer {
             let qrDrawSize = PDFMass.qrCodeSize
             let qrInset = (PDFMass.qrCodeSize - qrDrawSize) / 2  // negative → expands
             let qrRect = CGRect(
-                x: leftColX + 2 * PDFMass.ptPerMm,
-                y: y,
+                x: PDFMass.qrLeft,
+                y: PDFMass.qrTop,
                 width: PDFMass.qrCodeSize,
                 height: PDFMass.qrCodeSize
             )
@@ -519,261 +402,167 @@ public struct InvoicePDFRenderer {
             QRCodeGenerator.drawSwissCrossOverlay(in: qrDrawRect)
             y += PDFMass.qrCodeSize + 8
         }
-
-        // Currency & Amount below QR code
-//        let headingAttr: [NSAttributedString.Key: Any] = [
-//            .font: fonts.font(size: PDFMass.fontHeading, weight: .regular),
-//            .foregroundColor: UIColor.secondaryLabel,
-//        ]
-//        let monoAttr: [NSAttributedString.Key: Any] = [
-//            .font: fonts.monospacedDigitFont(size: PDFMass.fontBody, weight: .bold)
-//        ]
-        let monoSmallAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.monospacedDigitFont(size: PDFMass.fontBody, weight: .regular)
-        ]
-
-        // Right column: Payment info
         let rightColX = leftColX + PDFMass.qrCodeSize + 8 * PDFMass.ptPerMm
-        var ry = zahlteilY + 10 + 20 * PDFMass.ptPerMm  // align with QR code
-
-//        let smallLabelAttr: [NSAttributedString.Key: Any] = [
-//            .font: fonts.font(size: PDFMass.fontSmall + 1, weight: .regular),
-//            .foregroundColor: UIColor.secondaryLabel,
-//        ]
-        let smallLabelBoldAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: PDFMass.fontSmall + 1, weight: .bold)
-        ]
-        let smallBoldAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: PDFMass.fontSmall + 1, weight: .semibold)
-        ]
-        let smallBodyAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: PDFMass.fontSmall + 1)
-        ]
-
-        let sectionGap: CGFloat = 12
-        ry = zahlteilY + sectionGap
+        var ry = zahlteilY + 10
 
         // Account / Payable to
-        drawWrapped(
+        ry += draw(
             "Konto / Zahlbar an",
             at: CGPoint(x: rightColX, y: ry),
-            maxWidth: maxWidth,
-            attributes: smallLabelBoldAttr
+            fontType: .headerPayment
         )
-        ry += PDFMass.fontSmall + 3
-        drawWrapped(invoice.iban, at: CGPoint(x: rightColX, y: ry), maxWidth: maxWidth, attributes: smallBodyAttr)
-        ry += PDFMass.fontSmall + 4
-        drawWrapped(
+        ry += draw(invoice.iban, at: CGPoint(x: rightColX, y: ry), fontType: .textPayment)
+        ry += draw(
             invoice.creditor.name,
             at: CGPoint(x: rightColX, y: ry),
-            maxWidth: maxWidth,
-            attributes: smallBodyAttr
+            fontType: .textPayment
         )
-        ry += PDFMass.fontSmall + 4
-        drawWrapped(
+        ry += draw(
             "\(invoice.creditor.street) \(invoice.creditor.houseNumber)",
             at: CGPoint(x: rightColX, y: ry),
-            maxWidth: maxWidth,
-            attributes: smallBodyAttr
+            fontType: .textPayment
         )
-        ry += PDFMass.fontSmall + 4
-        drawWrapped(
+        ry += draw(
             "\(invoice.creditor.postalCode) \(invoice.creditor.city)",
             at: CGPoint(x: rightColX, y: ry),
-            maxWidth: maxWidth,
-            attributes: smallBodyAttr
+            fontType: .textPayment
         )
-        ry += PDFMass.fontSmall + sectionGap
-
         // Reference
         if let reference = invoice.reference, !reference.isEmpty {
-            drawWrapped(
-                "Referenz",
-                at: CGPoint(x: rightColX, y: ry),
-                maxWidth: maxWidth,
-                attributes: smallLabelBoldAttr
-            )
-            ry += PDFMass.fontSmall + 3
-            drawWrapped(reference, at: CGPoint(x: rightColX, y: ry), maxWidth: maxWidth, attributes: smallBodyAttr)
-            ry += PDFMass.fontSmall + sectionGap
+            ry += drawEmptyLine(fontType: .headerPayment)
+            ry += draw("Referenz", at: CGPoint(x: rightColX, y: ry), fontType: .headerPayment)
+            ry += draw(reference, at: CGPoint(x: rightColX, y: ry), fontType: .textPayment)
         }
 
         // Additional info
         if let info = invoice.additionalInfo, !info.isEmpty {
-            drawWrapped(
+            ry += drawEmptyLine(fontType: .headerPayment)
+            ry += draw(
                 "Zusätzliche Informationen",
                 at: CGPoint(x: rightColX, y: ry),
-                maxWidth: maxWidth,
-                attributes: smallBoldAttr
+                fontType: .headerPayment
             )
-            ry += PDFMass.fontSmall + 3
-            drawWrapped(info, at: CGPoint(x: rightColX, y: ry), maxWidth: maxWidth, attributes: smallBodyAttr)
-            ry += PDFMass.fontSmall + sectionGap
+            ry += draw(info, at: CGPoint(x: rightColX, y: ry), fontType: .textPayment)
         }
 
         // Payable by
-        drawWrapped(
+        ry += drawEmptyLine(fontType: .headerPayment)
+        ry += draw(
             "Zahlbar durch",
             at: CGPoint(x: rightColX, y: ry),
-            maxWidth: maxWidth,
-            attributes: smallBoldAttr
+            fontType: .headerPayment
         )
-        ry += PDFMass.fontSmall + 3
-        drawWrapped(
+        ry += draw(
             invoice.debtor.name,
             at: CGPoint(x: rightColX, y: ry),
-            maxWidth: maxWidth,
-            attributes: smallBodyAttr
+            fontType: .textPayment
         )
-        ry += PDFMass.fontSmall + 4
-        drawWrapped(
+        ry += draw(
             "\(invoice.debtor.street) \(invoice.debtor.houseNumber)",
             at: CGPoint(x: rightColX, y: ry),
-            maxWidth: maxWidth,
-            attributes: smallBodyAttr
+            fontType: .textPayment
         )
-        ry += PDFMass.fontSmall + 4
-        drawWrapped(
+        ry += draw(
             "\(invoice.debtor.postalCode) \(invoice.debtor.city)",
             at: CGPoint(x: rightColX, y: ry),
-            maxWidth: maxWidth,
-            attributes: smallBodyAttr
+            fontType: .textPayment
         )
 
-        let currAmtY = pageRect.height - 34 * PDFMass.ptPerMm
-        drawWrapped("Währung", at: CGPoint(x: leftColX, y: currAmtY), maxWidth: maxWidth, attributes: smallBoldAttr)
-        drawWrapped(
+        var currAmtY = PDFMass.pageHeight - 34 * PDFMass.ptPerMm
+        _ = draw("Währung", at: CGPoint(x: leftColX, y: currAmtY), fontType: .headerPayment)
+        currAmtY += draw(
             "Betrag",
             at: CGPoint(x: leftColX + 30 * PDFMass.ptPerMm, y: currAmtY),
-            maxWidth: maxWidth,
-            attributes: smallBoldAttr
+            fontType: .headerPayment
         )
-        let valueY = currAmtY + PDFMass.fontReceiptHeading + 4
-        invoice.amount.currency.rawValue.draw(at: CGPoint(x: leftColX, y: valueY), withAttributes: monoSmallAttr)
-        if !invoice.amount.isZero {
-            invoice.amount.formattedShort.draw(
-                at: CGPoint(x: leftColX + 30 * PDFMass.ptPerMm, y: valueY),
-                withAttributes: monoSmallAttr
-            )
-        }
+        _ = draw(invoice.amount.currency.rawValue, at: CGPoint(x: leftColX, y: currAmtY), fontType: .amountPayment)
+        _ = draw(
+            invoice.amount.formattedShort,
+            at: CGPoint(x: leftColX + 30 * PDFMass.ptPerMm, y: currAmtY),
+            fontType: .amountPayment
+        )
     }
 
     // MARK: - Receipt (Empfangsschein) — left 62mm
-
-    private static func drawReceipt(invoice: SwissInvoice, fonts: FontProvider, in ctx: CGContext, pageRect: CGRect) {
-        let zahlteilY = pageRect.height - PDFMass.zahlteilHeight
+    private func drawReceipt(invoice: SwissInvoice, in ctx: CGContext) {
+        let zahlteilY = PDFMass.pageHeight - PDFMass.zahlteilHeight
         let leftX: CGFloat = 5 * PDFMass.ptPerMm
-        let maxWidth = PDFMass.receiptWidth - 10 * PDFMass.ptPerMm
-
-        let titleAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: PDFMass.fontReceiptTitle, weight: .bold)
-        ]
-//        let labelAttr: [NSAttributedString.Key: Any] = [
-//            .font: fonts.font(size: PDFMass.fontReceiptHeading, weight: .bold),
-//            .foregroundColor: UIColor.secondaryLabel,
-//        ]
-        let boldAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: PDFMass.fontReceiptBody, weight: .bold)
-        ]
-        let bodyAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: PDFMass.fontReceiptBody)
-        ]
-
         var y = zahlteilY + 10
-
-        drawWrapped("Empfangsschein", at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: titleAttr)
-        y += PDFMass.fontReceiptTitle + 8
+        y += draw("Empfangsschein", at: CGPoint(x: leftX, y: y), fontType: .titleReceiver)
+        y += drawEmptyLine(fontType: .titleReceiver)
 
         // Account / Payable to
-        drawWrapped("Konto / Zahlbar an", at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: boldAttr)
-        y += PDFMass.fontReceiptBody + 2
-        drawWrapped(invoice.iban, at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: bodyAttr)
-        y += PDFMass.fontReceiptBody + 2
-        drawWrapped(invoice.creditor.name, at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: bodyAttr)
-        y += PDFMass.fontReceiptBody + 2
-        drawWrapped(
+        y += draw(
+            "Konto / Zahlbar an",
+            at: CGPoint(x: leftX, y: y),
+            fontType: .headerReceiver
+        )
+        y += draw(invoice.iban, at: CGPoint(x: leftX, y: y), fontType: .textReceiver)
+        y += draw(invoice.creditor.name, at: CGPoint(x: leftX, y: y), fontType: .textReceiver)
+        y += draw(
             "\(invoice.creditor.street) \(invoice.creditor.houseNumber)",
             at: CGPoint(x: leftX, y: y),
-            maxWidth: maxWidth,
-            attributes: bodyAttr
+            fontType: .textReceiver
         )
-        y += PDFMass.fontReceiptBody + 2
-        drawWrapped(
+        y += draw(
             "\(invoice.creditor.postalCode) \(invoice.creditor.city)",
             at: CGPoint(x: leftX, y: y),
-            maxWidth: maxWidth,
-            attributes: bodyAttr
+            fontType: .textReceiver
         )
-        y += PDFMass.fontReceiptBody + 8
 
         // Reference
         if let reference = invoice.reference, !reference.isEmpty {
-            drawWrapped("Referenz", at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: boldAttr)
-            y += PDFMass.fontReceiptHeading + 2
-            drawWrapped(reference, at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: bodyAttr)
-            y += PDFMass.fontReceiptBody + 8
+            y += drawEmptyLine(fontType: .headerReceiver)
+            y += draw("Referenz", at: CGPoint(x: leftX, y: y), fontType: .headerReceiver)
+            y += draw(reference, at: CGPoint(x: leftX, y: y), fontType: .textReceiver)
         }
 
         // Payable by
-        drawWrapped("Zahlbar durch", at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: boldAttr)
-        y += PDFMass.fontReceiptHeading + 2
-        drawWrapped(invoice.debtor.name, at: CGPoint(x: leftX, y: y), maxWidth: maxWidth, attributes: bodyAttr)
-        y += PDFMass.fontReceiptBody + 2
-        drawWrapped(
+        y += drawEmptyLine(fontType: .headerReceiver)
+        y += draw("Zahlbar durch", at: CGPoint(x: leftX, y: y), fontType: .headerReceiver)
+        y += draw(invoice.debtor.name, at: CGPoint(x: leftX, y: y), fontType: .textReceiver)
+        y += draw(
             "\(invoice.debtor.street) \(invoice.debtor.houseNumber)",
             at: CGPoint(x: leftX, y: y),
-            maxWidth: maxWidth,
-            attributes: bodyAttr
+            fontType: .textReceiver
         )
-        y += PDFMass.fontReceiptBody + 2
-        drawWrapped(
+        y += draw(
             "\(invoice.debtor.postalCode) \(invoice.debtor.city)",
             at: CGPoint(x: leftX, y: y),
-            maxWidth: maxWidth,
-            attributes: bodyAttr
+            fontType: .textReceiver
         )
-        y += PDFMass.fontReceiptBody + 8
 
         // Currency & Amount
-        let currAmtY = pageRect.height - 34 * PDFMass.ptPerMm
-        drawWrapped("Währung", at: CGPoint(x: leftX, y: currAmtY), maxWidth: maxWidth, attributes: boldAttr)
-        drawWrapped(
+        let currAmtY = PDFMass.pageHeight - 34 * PDFMass.ptPerMm
+        _ = draw("Währung", at: CGPoint(x: leftX, y: currAmtY), fontType: .headerReceiver)
+        _ = draw(
             "Betrag",
             at: CGPoint(x: leftX + 18 * PDFMass.ptPerMm, y: currAmtY),
-            maxWidth: maxWidth,
-            attributes: boldAttr
+            fontType: .headerReceiver
         )
         let valueY = currAmtY + PDFMass.fontReceiptHeading + 4
-        drawWrapped(
+        _ = draw(
             invoice.amount.currency.rawValue,
             at: CGPoint(x: leftX, y: valueY),
-            maxWidth: maxWidth,
-            attributes: bodyAttr
+            fontType: .amountReceiver
         )
-        if !invoice.amount.isZero {
-            drawWrapped(
-                invoice.amount.formattedShort,
-                at: CGPoint(x: leftX + 18 * PDFMass.ptPerMm, y: valueY),
-                maxWidth: maxWidth,
-                attributes: bodyAttr
-            )
-        }
+        _ = draw(
+            invoice.amount.formattedShort,
+            at: CGPoint(x: leftX + 18 * PDFMass.ptPerMm, y: valueY),
+            fontType: .amountReceiver
+        )
 
         // "Annahmestelle" (acceptance point) — bottom right of receipt
-        let acceptAttr: [NSAttributedString.Key: Any] = [
-            .font: fonts.font(size: PDFMass.fontReceiptHeading, weight: .bold)
-        ]
         let acceptText = "Annahmestelle"
-        let acceptSize = (acceptText as NSString).size(withAttributes: acceptAttr)
-        let acceptX = PDFMass.receiptWidth - 5 * PDFMass.ptPerMm - acceptSize.width
-        let acceptY = pageRect.height - 20 * PDFMass.ptPerMm
-        drawWrapped(acceptText, at: CGPoint(x: acceptX, y: acceptY), maxWidth: maxWidth, attributes: acceptAttr)
+        let acceptX = PDFMass.receiptWidth - 5 * PDFMass.ptPerMm  // TODO: Not finished
+        let acceptY = PDFMass.pageHeight - 20 * PDFMass.ptPerMm
+        _ = drawRightAligned(acceptText, at: CGPoint(x: PDFMass.annahmestelle, y: acceptY), fontType: .textReceiver)
     }
 
     // MARK: - Drawing Helpers
 
-    private static func drawHRule(
-        in ctx: CGContext,
+    private func drawHRule(
+        ctx: CGContext,
         y: CGFloat,
         from startX: CGFloat,
         to endX: CGFloat,
@@ -788,13 +577,13 @@ public struct InvoicePDFRenderer {
         ctx.restoreGState()
     }
 
-    private static func drawZahlteilSeparator(in ctx: CGContext, y: CGFloat, pageRect: CGRect) {
+    private func drawZahlteilSeparator(in ctx: CGContext, y: CGFloat) {
         ctx.saveGState()
         ctx.setStrokeColor(UIColor.black.cgColor)
         ctx.setLineWidth(0.5)
         ctx.setLineDash(phase: 0, lengths: [3, 3])
         ctx.move(to: CGPoint(x: 0, y: y))
-        ctx.addLine(to: CGPoint(x: pageRect.width, y: y))
+        ctx.addLine(to: CGPoint(x: PDFMass.pageWidth, y: y))
         ctx.strokePath()
         ctx.restoreGState()
 
@@ -805,12 +594,12 @@ public struct InvoicePDFRenderer {
         let scissorsStr = "✂"
         let size = (scissorsStr as NSString).size(withAttributes: scissorsAttr)
         (scissorsStr as NSString).draw(
-            at: CGPoint(x: pageRect.width / 2 - size.width / 2, y: y - size.height / 2),
+            at: CGPoint(x: PDFMass.pageWidth / 2 - size.width / 2, y: y - size.height / 2),
             withAttributes: scissorsAttr
         )
     }
 
-    private static func drawVerticalSeparator(in ctx: CGContext, x: CGFloat, fromY: CGFloat, toY: CGFloat) {
+    private func drawVerticalSeparator(in ctx: CGContext, x: CGFloat, fromY: CGFloat, toY: CGFloat) {
         ctx.saveGState()
         ctx.setStrokeColor(UIColor.black.cgColor)
         ctx.setLineWidth(0.5)
@@ -821,26 +610,11 @@ public struct InvoicePDFRenderer {
         ctx.restoreGState()
     }
 
-    private static func drawRightAligned(_ text: String, at point: CGPoint, attributes: [NSAttributedString.Key: Any]) {
-        let w = (text as NSString).size(withAttributes: attributes).width
-        (text as NSString).draw(at: CGPoint(x: point.x - w, y: point.y), withAttributes: attributes)
-    }
-
-    private static func drawWrapped(
-        _ text: String,
-        at point: CGPoint,
-        maxWidth: CGFloat,
-        attributes: [NSAttributedString.Key: Any]
-    ) {
-        let rect = CGRect(x: point.x, y: point.y, width: maxWidth, height: 100)
-        (text as NSString).draw(with: rect, options: .usesLineFragmentOrigin, attributes: attributes, context: nil)
-    }
-
     // MARK: - Address Helpers
 
     /// Builds address lines from an Address, optionally including the name.
     /// Omits countryCode for CH addresses (domestic).
-    private static func buildAddressLines(_ address: Address, includeName: Bool) -> [String] {
+    private func buildAddressLines(_ address: Address, includeName: Bool) -> [String] {
         var result: [String] = []
         if includeName {
             result.append(address.name)
@@ -861,4 +635,127 @@ public struct InvoicePDFRenderer {
         }
         return result
     }
+
+    private func drawRightAligned(_ text: String, at point: CGPoint, fontType: FontType) -> CGFloat {
+        let fontSize = fontType.fontSize ?? self.fontSize
+        var font: UIFont
+        if let customFontName = fontType.fontName {
+            font = UIFont(name: customFontName, size: fontSize) ?? .systemFont(ofSize: fontSize)
+        } else {
+            font = UIFont(name: self.fontName, size: fontSize) ?? .systemFont(ofSize: fontSize)
+        }
+        // Falls der Font laut Enum fett sein soll, den Descriptor anpassen
+        if fontType.isBold {
+            if let descriptor = font.fontDescriptor.withSymbolicTraits(.traitBold) {
+                font = UIFont(descriptor: descriptor, size: 0)
+            }
+        }
+
+        // Monospace berücksichtigen (wichtig für die Breitenberechnung von Beträgen)
+        if fontType.isMonospaced {
+            font = UIFont.monospacedSystemFont(ofSize: fontSize, weight: fontType.isBold ? .bold : .regular)
+        }
+
+        let attributes: [NSAttributedString.Key: Any] = [.font: font]
+
+        // 2. Die Breite des Textes berechnen
+        let textSize = (text as NSString).size(withAttributes: attributes)
+
+        // 3. Den neuen Startpunkt berechnen (X-Koordinate nach links verschieben)
+        let adjustedPoint = CGPoint(x: point.x - textSize.width, y: point.y)
+
+        // 4. Die bestehende draw-Funktion zur eigentlichen Ausgabe nutzen
+        return self.draw(text, at: adjustedPoint, fontType: fontType)
+    }
+
+    private func drawMultiline(_ text: String, at point: CGPoint, width: CGFloat, fontType: FontType) -> CGFloat {
+        // 1. Font & Style vorbereiten (wie zuvor)
+        let thisFontSize = fontType.fontSize ?? fontSize
+        var font: UIFont
+        if let customFontName = fontType.fontName {
+            font = UIFont(name: customFontName, size: thisFontSize) ?? .systemFont(ofSize: fontSize)
+        } else {
+            font = UIFont(name: self.fontName, size: thisFontSize) ?? .systemFont(ofSize: fontSize)
+        }
+        
+        // 2. Bold-Styling anwenden, falls in der Enum definiert
+        if fontType.isBold {
+            if let descriptor = font.fontDescriptor.withSymbolicTraits(.traitBold) {
+                font = UIFont(descriptor: descriptor, size: 0)  // size 0 behält die aktuelle Größe
+            }
+        }
+        
+        // 2. Absatz-Stil für den Zeilenumbruch definieren
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .left
+        paragraphStyle.lineBreakMode = .byWordWrapping  // Bricht bei Wortenden um
+
+        // 3. Attribute zusammenstellen
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: UIColor.black,
+            .paragraphStyle: paragraphStyle,
+        ]
+
+        let estimatedSize = CGSize(width: width, height: CGFloat.greatestFiniteMagnitude)
+        let actualRect = text.boundingRect(
+            with: estimatedSize,
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: attributes,
+            context: nil
+        )
+
+        // 4. In ein Rechteck zeichnen statt an einen Punkt
+        // Swift berechnet den Umbruch innerhalb von 'rect' automatisch
+        text.draw(
+            in: CGRect(x: point.x, y: point.y, width: width, height: actualRect.height),
+            withAttributes: attributes
+        )
+        return actualRect.height
+    }
+
+    private func draw(_ text: String, at point: CGPoint, fontType: FontType) -> CGFloat {
+        let fontSize = fontType.fontSize ?? self.fontSize
+        let attributes: [NSAttributedString.Key: Any] = createAttributes(fontType: fontType)
+        let string = NSAttributedString(string: text, attributes: attributes)
+        string.draw(at: point)
+        return fontSize * fontType.lineSpacing
+    }
+    
+    private func drawEmptyLine(fontType: FontType) -> CGFloat {
+        return fontType.fontSize ?? self.fontSize * fontType.lineSpacing
+    }
+    
+    private func createAttributes(fontType: FontType) -> [NSAttributedString.Key: Any] {
+        let fontSize = fontType.fontSize ?? self.fontSize
+        var font: UIFont
+        if let customFontName = fontType.fontName {
+            font = UIFont(name: customFontName, size: fontSize) ?? .systemFont(ofSize: fontSize)
+        } else {
+            font = UIFont(name: self.fontName, size: fontSize) ?? .systemFont(ofSize: fontSize)
+        }
+        
+        // 2. Bold-Styling anwenden, falls in der Enum definiert
+        if fontType.isBold {
+            if let descriptor = font.fontDescriptor.withSymbolicTraits(.traitBold) {
+                font = UIFont(descriptor: descriptor, size: 0)  // size 0 behält die aktuelle Größe
+            }
+        }
+
+        // Absatzstil für Wortumbruch definieren
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineBreakMode = .byWordWrapping
+        paragraphStyle.alignment = .left
+
+        // Ein leichter zusätzlicher Zeilenabstand für bessere Lesbarkeit
+//        paragraphStyle.lineSpacing = 2
+
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: UIColor.black,
+            .paragraphStyle: paragraphStyle,
+        ]
+        return attributes
+    }
+
 }

@@ -40,18 +40,16 @@ struct InvoiceFormView: View {
     @State private var fontName = ""
     @State private var fontSizeText = ""
     @State private var leadingText =
-        "Sehr geehrter Herr \nGemäss unserer Vereinbarung vom xxxx stelle ich Ihnen wie folgt Rechnung:"
+        "Sehr geehrter Herr Müller\n\nGemäss unserer Vereinbarung vom xxxx stelle ich Ihnen wie folgt Rechnung:"
     @State private var trailingText =
         "Besten Dank für Ihr Vertrauen und den Auftrag.\n\nMit freundlichen Grüssen,\nThomas Süssli"
 
     // Line Items
     @State private var lineItems: [LineItemViewRow] = [
-        LineItemViewRow(type: .unitPrice ,description: "Vorbereitungszeit", quantity: "10", unit: "h", unitPrice: "3000.00"),
-        LineItemViewRow(
-            type: .fixedPrice,
-            description: "Cyber Awareness Training, 2 Sessions, am 2. März 2026",
-            amount: "6000.00"
-        ),
+        LineItemViewRow(type: .unitPrice , description: "Vorbereitungszeit", quantity: "10", unit: "h", unitPrice: "1000.00"),
+        LineItemViewRow(type: .fixedPrice, description: "Cyber Awareness Training, 2 Sessions, am 2. März 2026", amount: "6000.00"),
+        LineItemViewRow(type: .unitPrice , description: "Anwaltsstunden", quantity: "18.5", unit: "h", unitPrice: "2400.00"),
+        LineItemViewRow(type: .fixedPrice, description: "Ärgerpauschale", amount: "999999999.00"),
         LineItemViewRow(type: .vat, description: "", quantity: "", unit: "", vatRate: "5.6", amount: "674.38"),
         LineItemViewRow(type: .vat, description: "", quantity: "", unit: "", vatRate: "8.1", amount: "74.87"),
     ]

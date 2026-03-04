@@ -92,7 +92,7 @@ public struct SwissInvoice: Sendable {
     }
 
     public func pdfData() -> Data {
-        InvoicePDFRenderer.render(invoice: self)
+        InvoicePDFRenderer(fontName: fontName, fontSize: fontSize).render(invoice: self)
     }
     
     public func hasUnitItems() -> Bool {
