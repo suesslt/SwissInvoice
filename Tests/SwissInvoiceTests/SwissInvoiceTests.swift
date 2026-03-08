@@ -37,8 +37,8 @@ struct SwissInvoiceTests {
         )
         #expect(invoice.creditor.name == "Muster AG")
         #expect(invoice.iban == "CH1230000000000012345")
-        #expect(invoice.totalAmount.amount == Decimal(string: "100.00")!)
-        #expect(invoice.totalAmount.currency == .chf)
+        #expect(invoice.amount.amount == Decimal(string: "100.00")!)
+        #expect(invoice.amount.currency == .chf)
         #expect(invoice.debtor == nil)
         #expect(invoice.referenceType == .none)
         #expect(invoice.reference == nil)
@@ -124,5 +124,216 @@ struct SwissInvoiceTests {
         let lines = payload.components(separatedBy: "\n")
         #expect(lines[18] == "1234.50")
         #expect(lines[19] == "EUR")
+    }
+
+    // MARK: - Business Logic
+
+    @Test func hasUnitItemsTrue() {
+        let items = [
+            InvoiceLineItem(
+                description: "Consulting",
+                quantity: 10,
+                unit: "h",
+                unitPrice: Money(amount: 150, currency: .chf),
+                amount: Money(amount: 1500, currency: .chf)
+            )
+        ]
+        let invoice = SwissInvoice(
+            creditor: creditor,
+            iban: "CH1230000000000012345",
+            amount: Money(amount: 1500, currency: .chf),
+            lineItems: items
+        )
+        #expect(invoice.hasUnitItems())
+    }
+
+    @Test func hasUnitItemsFalse() {
+        let items = [
+            InvoiceLineItem(
+                description: "Flat fee",
+                amount: Money(amount: 500, currency: .chf)
+            )
+        ]
+        let invoice = SwissInvoice(
+            creditor: creditor,
+            iban: "CH1230000000000012345",
+            amount: Money(amount: 500, currency: .chf),
+            lineItems: items
+        )
+        #expect(!invoice.hasUnitItems())
+    }
+
+    @Test func hasUnitItemsEmpty() {
+        let invoice = SwissInvoice(
+            creditor: creditor,
+            iban: "CH1230000000000012345",
+            amount: Money(amount: 100, currency: .chf)
+        )
+        #expect(!invoice.hasUnitItems())
+    }
+
+    @Test func hasVatTrue() {
+        let items = [
+            InvoiceLineItem(
+                lineItemType: .fixedPrice,
+                description: "Service",
+                amount: Money(amount: 1000, currency: .chf)
+            ),
+            InvoiceLineItem(
+                lineItemType: .vat,
+                description: "MWST 8.1%",
+                vatRate: Decimal(string: "8.1"),
+                amount: Money(amount: 81, currency: .chf)
+            )
+        ]
+        let invoice = SwissInvoice(
+            creditor: creditor,
+            iban: "CH1230000000000012345",
+            amount: Money(amount: 1081, currency: .chf),
+            lineItems: items
+        )
+        #expect(invoice.hasVat())
+    }
+
+    @Test func hasVatFalse() {
+        let items = [
+            InvoiceLineItem(
+                description: "Service",
+                amount: Money(amount: 1000, currency: .chf)
+            )
+        ]
+        let invoice = SwissInvoice(
+            creditor: creditor,
+            iban: "CH1230000000000012345",
+            amount: Money(amount: 1000, currency: .chf),
+            lineItems: items
+        )
+        #expect(!invoice.hasVat())
+    }
+
+    @Test func invoiceItemsFiltering() {
+        let items = [
+            InvoiceLineItem(
+                lineItemType: .fixedPrice,
+                description: "Service",
+                amount: Money(amount: 1000, currency: .chf)
+            ),
+            InvoiceLineItem(
+                lineItemType: .unitPrice,
+                description: "Consulting",
+                quantity: 5,
+                unit: "h",
+                unitPrice: Money(amount: 200, currency: .chf),
+                amount: Money(amount: 1000, currency: .chf)
+            ),
+            InvoiceLineItem(
+                lineItemType: .vat,
+                description: "MWST",
+                vatRate: Decimal(string: "8.1"),
+                amount: Money(amount: 162, currency: .chf)
+            )
+        ]
+        let invoice = SwissInvoice(
+            creditor: creditor,
+            iban: "CH1230000000000012345",
+            amount: Money(amount: 2162, currency: .chf),
+            lineItems: items
+        )
+        #expect(invoice.invoiceItems.count == 2)
+        #expect(invoice.vatItems.count == 1)
+        #expect(invoice.invoiceItems.allSatisfy { $0.lineItemType != .vat })
+        #expect(invoice.vatItems.allSatisfy { $0.lineItemType == .vat })
+    }
+
+    @Test func totalVatAmount() {
+        let items = [
+            InvoiceLineItem(
+                lineItemType: .fixedPrice,
+                description: "Service",
+                amount: Money(amount: 1000, currency: .chf)
+            ),
+            InvoiceLineItem(
+                lineItemType: .vat,
+                description: "MWST 8.1%",
+                vatRate: Decimal(string: "8.1"),
+                amount: Money(amount: 81, currency: .chf)
+            )
+        ]
+        let invoice = SwissInvoice(
+            creditor: creditor,
+            iban: "CH1230000000000012345",
+            amount: Money(amount: 1081, currency: .chf),
+            lineItems: items
+        )
+        #expect(invoice.totalVatAmount?.amount == 81)
+    }
+
+    @Test func totalWithoutVatAmount() {
+        let items = [
+            InvoiceLineItem(
+                lineItemType: .fixedPrice,
+                description: "Service",
+                amount: Money(amount: 1000, currency: .chf)
+            ),
+            InvoiceLineItem(
+                lineItemType: .vat,
+                description: "MWST 8.1%",
+                vatRate: Decimal(string: "8.1"),
+                amount: Money(amount: 81, currency: .chf)
+            )
+        ]
+        let invoice = SwissInvoice(
+            creditor: creditor,
+            iban: "CH1230000000000012345",
+            amount: Money(amount: 1081, currency: .chf),
+            lineItems: items
+        )
+        #expect(invoice.totalWithoutVatAmount?.amount == 1000)
+    }
+
+    @Test func totalVatAmountNilWhenNoVat() {
+        let invoice = SwissInvoice(
+            creditor: creditor,
+            iban: "CH1230000000000012345",
+            amount: Money(amount: 100, currency: .chf)
+        )
+        #expect(invoice.totalVatAmount == nil)
+    }
+
+    @Test func totalWithoutVatAmountNilWhenNoItems() {
+        let invoice = SwissInvoice(
+            creditor: creditor,
+            iban: "CH1230000000000012345",
+            amount: Money(amount: 100, currency: .chf)
+        )
+        #expect(invoice.totalWithoutVatAmount == nil)
+    }
+
+    @Test func optionalFields() {
+        let invoice = SwissInvoice(
+            creditor: creditor,
+            iban: "CH1230000000000012345",
+            amount: Money(amount: 100, currency: .chf),
+            vatNr: "CHE-123.456.789 MWST",
+            subject: "Rechnung Oktober",
+            leadingText: "Sehr geehrte Damen und Herren",
+            trailingText: "Zahlbar innert 30 Tagen"
+        )
+        #expect(invoice.vatNr == "CHE-123.456.789 MWST")
+        #expect(invoice.subject == "Rechnung Oktober")
+        #expect(invoice.leadingText == "Sehr geehrte Damen und Herren")
+        #expect(invoice.trailingText == "Zahlbar innert 30 Tagen")
+    }
+
+    @Test func fontSettings() {
+        let invoice = SwissInvoice(
+            creditor: creditor,
+            iban: "CH1230000000000012345",
+            amount: Money(amount: 100, currency: .chf),
+            fontName: "Roboto",
+            fontSize: 12
+        )
+        #expect(invoice.fontName == "Roboto")
+        #expect(invoice.fontSize == 12)
     }
 }

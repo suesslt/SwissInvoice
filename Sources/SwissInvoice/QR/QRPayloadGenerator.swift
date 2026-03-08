@@ -32,7 +32,11 @@ public enum QRPayloadGenerator {
         lines.append(invoice.amount.currency.rawValue)
         
         // 5. Debtor Info (lines 20-26)
-        lines.append(contentsOf: formatAddress(invoice.debtor))
+        if let debtor = invoice.debtor {
+            lines.append(contentsOf: formatAddress(debtor))
+        } else {
+            lines.append(contentsOf: Array(repeating: "", count: 7))
+        }
 
         // 6. Payment Reference (lines 27-28)
         lines.append(invoice.referenceType.rawValue)

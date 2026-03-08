@@ -10,6 +10,7 @@ struct QRPayloadGeneratorTests {
     private var creditor: Address {
         Address(
             name: "Muster AG",
+            addressAddition: "",
             street: "Bahnhofstrasse",
             houseNumber: "1",
             postalCode: "8001",
@@ -21,6 +22,7 @@ struct QRPayloadGeneratorTests {
     private var debtor: Address {
         Address(
             name: "Hans Mustermann",
+            addressAddition: "",
             street: "Rebenweg",
             houseNumber: "12",
             postalCode: "3000",

@@ -126,6 +126,8 @@ public struct SwissQRCodeView: View {
                 city: "Biel",
                 countryCode: "CH"
             ),
+            iban: "CH4431999123000889012",
+            amount: Money(amount: Decimal(string: "199.95")!, currency: .chf),
             debtor: Address(
                 name: "Pia-Maria Rutschmann-Schnyder",
                 addressAddition: "c/o Mark Heinz",
@@ -135,7 +137,6 @@ public struct SwissQRCodeView: View {
                 city: "Rorschach",
                 countryCode: "CH"
             ),
-            iban: "CH4431999123000889012",
             reference: "210000000003139471430009017"
         ),
         size: 300

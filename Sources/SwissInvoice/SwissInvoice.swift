@@ -23,7 +23,7 @@ import UIKit
 public struct SwissInvoice: Sendable {
     public let title: String?
     public let creditor: Address
-    public let debtor: Address
+    public let debtor: Address?
     public let invoiceDate: Date?
     public let iban: String
     public let referenceType: ReferenceType
@@ -32,23 +32,25 @@ public struct SwissInvoice: Sendable {
     public let vatNr: String?
     public let subject: String?
     public let leadingText: String?
+    public let amount: Money
     public let lineItems: [InvoiceLineItem]
     public let trailingText: String?
     public let fontName: String?
     public let fontSize: CGFloat?
 
     public init(
-        title: String? = nil,
         creditor: Address,
-        debtor: Address,
-        invoiceDate: Date? = nil,
         iban: String,
+        amount: Money,
+        debtor: Address? = nil,
         referenceType: ReferenceType = .none,
         reference: String? = nil,
         additionalInfo: String? = nil,
         vatNr: String? = nil,
+        title: String? = nil,
         subject: String? = nil,
         leadingText: String? = nil,
+        invoiceDate: Date? = nil,
         lineItems: [InvoiceLineItem] = [],
         trailingText: String? = nil,
         fontName: String? = nil,
@@ -57,6 +59,7 @@ public struct SwissInvoice: Sendable {
         self.creditor = creditor
         self.debtor = debtor
         self.iban = iban
+        self.amount = amount
         self.referenceType = referenceType
         self.reference = reference
         self.additionalInfo = additionalInfo
@@ -70,35 +73,35 @@ public struct SwissInvoice: Sendable {
         self.fontName = fontName
         self.fontSize = fontSize
     }
-    
-    public var amount: Money {
-        lineItems.reduce(Money(amount: Decimal(0), currency: .chf)) { $0 + $1.amount }
-    }
-    
+
     public var totalVatAmount: Money? {
-        lineItems.filter( { $0.lineItemType == .vat }).reduce(Money(amount: Decimal(0), currency: .chf)) { $0 + $1.amount }
+        let vatItems = lineItems.filter { $0.lineItemType == .vat }
+        guard !vatItems.isEmpty else { return nil }
+        return vatItems.reduce(Money.zero(amount.currency)) { $0 + $1.amount }
     }
-    
+
     public var totalWithoutVatAmount: Money? {
-        lineItems.filter( { $0.lineItemType != .vat }).reduce(Money(amount: Decimal(0), currency: .chf)) { $0 + $1.amount }
+        let nonVatItems = lineItems.filter { $0.lineItemType != .vat }
+        guard !nonVatItems.isEmpty else { return nil }
+        return nonVatItems.reduce(Money.zero(amount.currency)) { $0 + $1.amount }
     }
-    
+
     public var invoiceItems: [InvoiceLineItem] {
-        lineItems.filter( { $0.lineItemType != .vat })
+        lineItems.filter { $0.lineItemType != .vat }
     }
-    
+
     public var vatItems: [InvoiceLineItem] {
-        lineItems.filter( { $0.lineItemType == .vat })
+        lineItems.filter { $0.lineItemType == .vat }
     }
 
     public func pdfData() -> Data {
         InvoicePDFRenderer(fontName: fontName, fontSize: fontSize).render(invoice: self)
     }
-    
+
     public func hasUnitItems() -> Bool {
         lineItems.contains(where: { $0.lineItemType == .unitPrice })
     }
-    
+
     public func hasVat() -> Bool {
         lineItems.contains(where: { $0.lineItemType == .vat })
     }
@@ -125,7 +128,6 @@ public struct InvoiceLineItem: Sendable {
     public let unitPrice: Money?
     public let vatRate: Decimal?
     public let amount: Money
-   
 
     public init(
         lineItemType: LineItemType,
@@ -144,15 +146,33 @@ public struct InvoiceLineItem: Sendable {
         self.vatRate = vatRate
         self.amount = amount
     }
+
+    /// Convenience initializer that infers `lineItemType` from the presence of `unitPrice`.
+    public init(
+        description: String,
+        quantity: Decimal? = nil,
+        unit: String? = nil,
+        unitPrice: Money? = nil,
+        amount: Money
+    ) {
+        self.init(
+            lineItemType: unitPrice != nil ? .unitPrice : .fixedPrice,
+            description: description,
+            quantity: quantity,
+            unit: unit,
+            unitPrice: unitPrice,
+            amount: amount
+        )
+    }
 }
 
 public enum LineItemType: String, CaseIterable, Identifiable, Sendable {
     case fixedPrice
     case unitPrice
     case vat
-    
+
     public var id: String { self.rawValue }
-    
+
     public var label: String {
         switch self {
         case .fixedPrice:
@@ -164,4 +184,3 @@ public enum LineItemType: String, CaseIterable, Identifiable, Sendable {
         }
     }
 }
-

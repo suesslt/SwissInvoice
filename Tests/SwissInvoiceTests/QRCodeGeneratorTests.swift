@@ -5,6 +5,8 @@ import Foundation
 @Suite("QR Code Generator Tests")
 struct QRCodeGeneratorTests {
 
+    // MARK: - generateImage
+
     @Test func generatesImage() {
         let payload = "SPC\n0200\n1\nCH1230000000000012345\nS\nTest\nStrasse\n1\n8000\nZürich\nCH\n\n\n\n\n\n\n\n100.00\nCHF\n\n\n\n\n\n\n\nNON\n\n\nEPD\n\n"
         let image = QRCodeGenerator.generateImage(payload: payload, size: 200)
@@ -47,5 +49,44 @@ struct QRCodeGeneratorTests {
             let pixelWidth = image.size.width * image.scale
             #expect(pixelWidth >= 1000) // At least 1000px for print quality
         }
+    }
+
+    // MARK: - generateModulesCGImage
+
+    @Test func generateModulesCGImageReturnsImage() {
+        let payload = "SPC\n0200\n1\nCH1230000000000012345"
+        let cgImage = QRCodeGenerator.generateModulesCGImage(payload: payload)
+        #expect(cgImage != nil)
+    }
+
+    @Test func generateModulesCGImageCorrectSize() {
+        let payload = "SPC\n0200\n1\nCH1230000000000012345"
+        let pixelSize = 1087
+        let cgImage = QRCodeGenerator.generateModulesCGImage(payload: payload, pixelSize: pixelSize)
+        #expect(cgImage != nil)
+        if let cgImage = cgImage {
+            #expect(abs(cgImage.width - pixelSize) < 2)
+            #expect(abs(cgImage.height - pixelSize) < 2)
+        }
+    }
+
+    @Test func generateModulesCGImageEmptyPayload() {
+        let cgImage = QRCodeGenerator.generateModulesCGImage(payload: "")
+        #expect(cgImage == nil)
+    }
+
+    @Test func generateModulesCGImageCustomPixelSize() {
+        let payload = "SPC\n0200\n1\nCH1230000000000012345"
+        let cgImage = QRCodeGenerator.generateModulesCGImage(payload: payload, pixelSize: 543)
+        #expect(cgImage != nil)
+        if let cgImage = cgImage {
+            #expect(abs(cgImage.width - 543) < 2)
+        }
+    }
+
+    // MARK: - printPixelSize constant
+
+    @Test func printPixelSizeIs1087() {
+        #expect(QRCodeGenerator.printPixelSize == 1087)
     }
 }
