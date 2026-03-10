@@ -1,3 +1,4 @@
+import Score
 import UIKit
 
 /// A Swiss QR Bill invoice per SIX specification v2.x.

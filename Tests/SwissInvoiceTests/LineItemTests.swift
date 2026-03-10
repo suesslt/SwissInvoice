@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import Score
 @testable import SwissInvoice
 
 @Suite("LineItem Tests")

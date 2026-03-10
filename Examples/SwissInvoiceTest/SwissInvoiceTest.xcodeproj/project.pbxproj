@@ -16,7 +16,6 @@
 		31AD3F26DD5C5E2339CF0E42 /* SwissInvoiceTest.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwissInvoiceTest.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8D2875B5E590E5C778A4885E /* SwissInvoiceDemoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwissInvoiceDemoApp.swift; sourceTree = "<group>"; };
 		BC45222962DAD5D8C7FE39AD /* InvoiceFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceFormView.swift; sourceTree = "<group>"; };
-		CACB5CF2028338759B676166 /* SwissInvoice */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SwissInvoice; path = ../..; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -52,7 +51,6 @@
 		A507B3833F6905E1C92D6BB0 /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				CACB5CF2028338759B676166 /* SwissInvoice */,
 			);
 			name = Packages;
 			sourceTree = "<group>";

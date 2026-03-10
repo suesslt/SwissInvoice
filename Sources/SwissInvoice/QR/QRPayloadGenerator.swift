@@ -1,4 +1,5 @@
 import Foundation
+import Score
 
 /// Generates the SPC/0200/1 payload string for Swiss QR Bills
 /// per SIX specification v2.x. The payload consists of exactly 33 lines.

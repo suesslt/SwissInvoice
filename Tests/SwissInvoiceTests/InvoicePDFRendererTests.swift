@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 import PDFKit
+import Score
 @testable import SwissInvoice
 
 @Suite("Invoice PDF Renderer Tests")

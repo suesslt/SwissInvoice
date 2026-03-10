@@ -6,8 +6,9 @@ import PackageDescription
 let package = Package(
     name: "SwissInvoice",
     platforms: [
-            .iOS(.v15),      // Sets minimum iOS version to 15.0
-        ],
+        .iOS(.v17),
+        .macOS(.v14),
+    ],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
@@ -15,15 +16,25 @@ let package = Package(
             targets: ["SwissInvoice"]
         ),
     ],
+    dependencies: [
+        .package(url: "https://github.com/suesslt/score.git", branch: "main"),
+    ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "SwissInvoice"
+            name: "SwissInvoice",
+            dependencies: [
+                .product(name: "Score", package: "score"),
+                .product(name: "ScoreUI", package: "score"),
+            ]
         ),
         .testTarget(
             name: "SwissInvoiceTests",
-            dependencies: ["SwissInvoice"]
+            dependencies: [
+                "SwissInvoice",
+                .product(name: "Score", package: "score"),
+            ]
         ),
     ]
 )

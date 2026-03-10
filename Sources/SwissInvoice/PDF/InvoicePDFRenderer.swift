@@ -1,5 +1,7 @@
 import CoreGraphics
 import CoreImage.CIFilterBuiltins
+import Score
+import ScoreUI
 import SwiftUI
 import UIKit
 
@@ -70,6 +72,9 @@ private enum PDFMasse {
 
     static let lineSpacing: CGFloat = 2
 }
+
+/// Swiss locale used for formatting monetary amounts.
+private let swissLocale = Locale(identifier: "de_CH")
 
 /// Renders a complete A4 invoice PDF with Swiss QR Bill payment part and receipt.
 public class InvoicePDFRenderer: PDFRenderer {
@@ -241,14 +246,14 @@ public class InvoicePDFRenderer: PDFRenderer {
                     }
                     if let unitPrice = item.unitPrice {
                         _ = drawRightAligned(
-                            unitPrice.formatted,
+                            unitPrice.formatted(locale: swissLocale),
                             at: CGPoint(x: PDFMasse.unitPriceColumn, y: yPosition + result),
                             fontType: .standard
                         )
                     }
                 }
                 result += drawRightAligned(
-                    item.amount.formatted,
+                    item.amount.formatted(locale: swissLocale),
                     at: CGPoint(x: PDFMasse.rightUsableBorder, y: yPosition + result),
                     fontType: .standard
                 )
@@ -264,7 +269,7 @@ public class InvoicePDFRenderer: PDFRenderer {
                 fontType: .standardBold
             )
             result += drawRightAligned(
-                invoice.totalWithoutVatAmount!.formatted,
+                invoice.totalWithoutVatAmount!.formatted(locale: swissLocale),
                 at: CGPoint(x: PDFMasse.rightUsableBorder, y: yPosition + result),
                 fontType: .standardBold
             )
@@ -275,7 +280,7 @@ public class InvoicePDFRenderer: PDFRenderer {
                     fontType: .standardBold
                 )
                 result += drawRightAligned(
-                    item.amount.formatted,
+                    item.amount.formatted(locale: swissLocale),
                     at: CGPoint(x: PDFMasse.rightUsableBorder, y: yPosition + result),
                     fontType: .standardBold
                 )
@@ -283,7 +288,7 @@ public class InvoicePDFRenderer: PDFRenderer {
         }
         _ = draw("Total", at: CGPoint(x: PDFMasse.quantityColumn, y: yPosition + result), fontType: .standardBold)
         result += drawRightAligned(
-            invoice.amount.formatted,
+            invoice.amount.formatted(locale: swissLocale),
             at: CGPoint(x: PDFMasse.rightUsableBorder, y: yPosition + result),
             fontType: .standardBold
         )
@@ -401,7 +406,7 @@ public class InvoicePDFRenderer: PDFRenderer {
         )
         _ = draw(invoice.amount.currency.rawValue, at: CGPoint(x: leftColX, y: currAmtY), fontType: .amountPayment)
         _ = draw(
-            invoice.amount.formattedShort,
+            invoice.amount.formattedAmount(locale: swissLocale),
             at: CGPoint(x: leftColX + 30 * PDFMasse.ptPerMm, y: currAmtY),
             fontType: .amountPayment
         )
@@ -472,7 +477,7 @@ public class InvoicePDFRenderer: PDFRenderer {
             fontType: .amountReceiver
         )
         _ = draw(
-            invoice.amount.formattedShort,
+            invoice.amount.formattedAmount(locale: swissLocale),
             at: CGPoint(x: leftX + 18 * PDFMasse.ptPerMm, y: valueY),
             fontType: .amountReceiver
         )

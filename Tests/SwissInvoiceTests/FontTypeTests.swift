@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import ScoreUI
 @testable import SwissInvoice
 
 @Suite("FontType Tests")

@@ -1,4 +1,5 @@
 import QuickLook
+import Score
 import SwiftUI
 import SwissInvoice
 
@@ -297,22 +298,28 @@ struct InvoiceFormView: View {
             )
         }
 
+        let amount = Money(
+            amount: Decimal(string: amountText) ?? 0,
+            currency: selectedCurrency
+        )
+
         return SwissInvoice(
-            title: invoiceTitle.isEmpty ? nil : invoiceTitle,
             creditor: creditor,
-            debtor: debtor,
-            invoiceDate: invoiceDate,
             iban: iban,
+            amount: amount,
+            debtor: debtor,
             referenceType: referenceType,
             reference: referenceNumber.isEmpty ? nil : referenceNumber,
             additionalInfo: additionalInfo.isEmpty ? nil : additionalInfo,
             vatNr: vatNr,
+            title: invoiceTitle.isEmpty ? nil : invoiceTitle,
             subject: subject.isEmpty ? nil : subject,
             leadingText: leadingText,
+            invoiceDate: invoiceDate,
             lineItems: items,
             trailingText: trailingText,
             fontName: resolvedFontName,
-            fontSize: CGFloat(Double(fontSizeText) ?? 10)
+            fontSize: CGFloat(Double(fontSizeText) ?? 12)
         )
     }
 }

@@ -1,3 +1,4 @@
+import Score
 import SwiftUI
 import CoreImage.CIFilterBuiltins
 
@@ -142,4 +143,3 @@ public struct SwissQRCodeView: View {
         size: 300
     )
 }
-
