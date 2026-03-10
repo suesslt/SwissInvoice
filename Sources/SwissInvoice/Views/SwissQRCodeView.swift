@@ -40,12 +40,7 @@ private struct SwissCrossShape: Shape {
 
 /// QR code overlay with Swiss Cross per SIX specification.
 private struct SwissCrossOverlay: View {
-    // Per SIX Swiss QR Bill specification:
-    //   QR code size:    46 × 46 mm
-    //   Carrier square:   7 ×  7 mm
-    //   → ratio:          7 / 46 ≈ 0.1522
     private let relativeSize: CGFloat = 7.0 / 46.0
-    // White border: ~0.6mm at 7mm carrier → 0.6/7 ≈ 0.0857
     private let whiteBorderRatio: CGFloat = 0.6 / 7.0
 
     var body: some View {
@@ -93,18 +88,27 @@ public struct SwissQRCodeView: View {
         self.size = size
     }
 
-    private var qrImage: UIImage? {
-        QRCodeGenerator.generateImage(payload: payload, size: size)
+    private var qrCGImage: CGImage? {
+        QRCodeGenerator.generateModulesCGImage(payload: payload, pixelSize: Int(size * 3))
     }
 
     public var body: some View {
-        if let image = qrImage {
-            Image(uiImage: image)
+        if let cgImage = qrCGImage {
+            #if canImport(UIKit)
+            Image(uiImage: UIImage(cgImage: cgImage))
                 .interpolation(.none)
                 .resizable()
                 .scaledToFit()
                 .frame(width: size, height: size)
                 .overlay(SwissCrossOverlay())
+            #elseif canImport(AppKit)
+            Image(nsImage: NSImage(cgImage: cgImage, size: NSSize(width: size, height: size)))
+                .interpolation(.none)
+                .resizable()
+                .scaledToFit()
+                .frame(width: size, height: size)
+                .overlay(SwissCrossOverlay())
+            #endif
         } else {
             Image(systemName: "qrcode")
                 .resizable()
@@ -128,7 +132,7 @@ public struct SwissQRCodeView: View {
                 countryCode: "CH"
             ),
             iban: "CH4431999123000889012",
-            amount: Money(amount: Decimal(string: "199.95")!, currency: .chf),
+            currency: .chf,
             debtor: Address(
                 name: "Pia-Maria Rutschmann-Schnyder",
                 addressAddition: "c/o Mark Heinz",
@@ -138,7 +142,13 @@ public struct SwissQRCodeView: View {
                 city: "Rorschach",
                 countryCode: "CH"
             ),
-            reference: "210000000003139471430009017"
+            reference: "210000000003139471430009017",
+            lineItems: [
+                InvoiceLineItem(
+                    description: "Beratung",
+                    amount: Money(amount: Decimal(string: "199.95")!, currency: .chf)
+                )
+            ]
         ),
         size: 300
     )

@@ -298,15 +298,10 @@ struct InvoiceFormView: View {
             )
         }
 
-        let amount = Money(
-            amount: Decimal(string: amountText) ?? 0,
-            currency: selectedCurrency
-        )
-
         return SwissInvoice(
             creditor: creditor,
             iban: iban,
-            amount: amount,
+            currency: selectedCurrency,
             debtor: debtor,
             referenceType: referenceType,
             reference: referenceNumber.isEmpty ? nil : referenceNumber,

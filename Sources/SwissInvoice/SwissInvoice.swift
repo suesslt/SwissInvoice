@@ -1,5 +1,10 @@
+import Foundation
 import Score
+import CoreGraphics
+
+#if canImport(UIKit)
 import UIKit
+#endif
 
 /// A Swiss QR Bill invoice per SIX specification v2.x.
 ///
@@ -9,16 +14,20 @@ import UIKit
 /// The QR standard only allows CHF and EUR currencies. This is validated
 /// at generation time.
 ///
+/// The total `amount` is computed automatically from line items.
+///
 /// ## Usage
 /// ```swift
 /// let invoice = SwissInvoice(
 ///     creditor: creditorAddress,
 ///     iban: "CH12 3000 0000 0000 1234 5",
-///     amount: Money(amount: 150.75, currency: .chf),
-///     debtor: debtorAddress
+///     currency: .chf,
+///     debtor: debtorAddress,
+///     lineItems: [
+///         InvoiceLineItem(description: "Beratung", amount: Money(amount: 150.75, currency: .chf))
+///     ]
 /// )
 /// let pdfData = invoice.pdfData()
-/// let qrImage = invoice.qrCodeImage()
 /// ```
 ///
 public struct SwissInvoice: Sendable {
@@ -33,16 +42,21 @@ public struct SwissInvoice: Sendable {
     public let vatNr: String?
     public let subject: String?
     public let leadingText: String?
-    public let amount: Money
+    public let currency: Currency
     public let lineItems: [InvoiceLineItem]
     public let trailingText: String?
     public let fontName: String?
     public let fontSize: CGFloat?
 
+    /// Total amount computed from all line items (including VAT).
+    public var amount: Money {
+        lineItems.reduce(Money.zero(currency)) { $0 + $1.amount }
+    }
+
     public init(
         creditor: Address,
         iban: String,
-        amount: Money,
+        currency: Currency,
         debtor: Address? = nil,
         referenceType: ReferenceType = .none,
         reference: String? = nil,
@@ -60,7 +74,7 @@ public struct SwissInvoice: Sendable {
         self.creditor = creditor
         self.debtor = debtor
         self.iban = iban
-        self.amount = amount
+        self.currency = currency
         self.referenceType = referenceType
         self.reference = reference
         self.additionalInfo = additionalInfo
@@ -78,13 +92,13 @@ public struct SwissInvoice: Sendable {
     public var totalVatAmount: Money? {
         let vatItems = lineItems.filter { $0.lineItemType == .vat }
         guard !vatItems.isEmpty else { return nil }
-        return vatItems.reduce(Money.zero(amount.currency)) { $0 + $1.amount }
+        return vatItems.reduce(Money.zero(currency)) { $0 + $1.amount }
     }
 
     public var totalWithoutVatAmount: Money? {
         let nonVatItems = lineItems.filter { $0.lineItemType != .vat }
         guard !nonVatItems.isEmpty else { return nil }
-        return nonVatItems.reduce(Money.zero(amount.currency)) { $0 + $1.amount }
+        return nonVatItems.reduce(Money.zero(currency)) { $0 + $1.amount }
     }
 
     public var invoiceItems: [InvoiceLineItem] {
@@ -112,6 +126,7 @@ public struct SwissInvoice: Sendable {
         QRPayloadGenerator.generatePayload(for: self)
     }
 
+    #if canImport(UIKit)
     /// Generates a QR code UIImage with Swiss Cross overlay.
     /// - Parameter size: Image size in points (default 130).
     /// - Returns: UIImage or nil if generation fails.
@@ -119,6 +134,7 @@ public struct SwissInvoice: Sendable {
         let payload = qrPayload()
         return QRCodeGenerator.generateImage(payload: payload, size: size)
     }
+    #endif
 }
 
 public struct InvoiceLineItem: Sendable {

@@ -34,7 +34,8 @@ struct SwissInvoiceTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf)
+            currency: .chf,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .chf))]
         )
         #expect(invoice.creditor.name == "Muster AG")
         #expect(invoice.iban == "CH1230000000000012345")
@@ -46,7 +47,6 @@ struct SwissInvoiceTests {
         #expect(invoice.additionalInfo == nil)
         #expect(invoice.title == nil)
         #expect(invoice.invoiceDate == nil)
-        #expect(invoice.lineItems.isEmpty)
     }
 
     @Test func fullCreation() {
@@ -63,7 +63,7 @@ struct SwissInvoiceTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "150.75")!, currency: .chf),
+            currency: .chf,
             debtor: debtor,
             referenceType: .qrReference,
             reference: "210000000003139471430009017",
@@ -85,7 +85,8 @@ struct SwissInvoiceTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf)
+            currency: .chf,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .chf))]
         )
         let data = invoice.pdfData()
         #expect(!data.isEmpty)
@@ -97,7 +98,8 @@ struct SwissInvoiceTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf)
+            currency: .chf,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .chf))]
         )
         let payload = invoice.qrPayload()
         #expect(payload.hasPrefix("SPC\n0200\n1"))
@@ -105,21 +107,25 @@ struct SwissInvoiceTests {
         #expect(lines.count == 33)
     }
 
+    #if canImport(UIKit)
     @Test func qrCodeImageReturnsImage() {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf)
+            currency: .chf,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .chf))]
         )
         let image = invoice.qrCodeImage()
         #expect(image != nil)
     }
+    #endif
 
     @Test func moneyIntegrationInPayload() {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "1234.50")!, currency: .eur)
+            currency: .eur,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "1234.50")!, currency: .eur))]
         )
         let payload = invoice.qrPayload()
         let lines = payload.components(separatedBy: "\n")
@@ -142,7 +148,7 @@ struct SwissInvoiceTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: 1500, currency: .chf),
+            currency: .chf,
             lineItems: items
         )
         #expect(invoice.hasUnitItems())
@@ -158,7 +164,7 @@ struct SwissInvoiceTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: 500, currency: .chf),
+            currency: .chf,
             lineItems: items
         )
         #expect(!invoice.hasUnitItems())
@@ -168,7 +174,7 @@ struct SwissInvoiceTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: 100, currency: .chf)
+            currency: .chf
         )
         #expect(!invoice.hasUnitItems())
     }
@@ -190,7 +196,7 @@ struct SwissInvoiceTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: 1081, currency: .chf),
+            currency: .chf,
             lineItems: items
         )
         #expect(invoice.hasVat())
@@ -206,7 +212,7 @@ struct SwissInvoiceTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: 1000, currency: .chf),
+            currency: .chf,
             lineItems: items
         )
         #expect(!invoice.hasVat())
@@ -237,7 +243,7 @@ struct SwissInvoiceTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: 2162, currency: .chf),
+            currency: .chf,
             lineItems: items
         )
         #expect(invoice.invoiceItems.count == 2)
@@ -263,7 +269,7 @@ struct SwissInvoiceTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: 1081, currency: .chf),
+            currency: .chf,
             lineItems: items
         )
         #expect(invoice.totalVatAmount?.amount == 81)
@@ -286,7 +292,7 @@ struct SwissInvoiceTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: 1081, currency: .chf),
+            currency: .chf,
             lineItems: items
         )
         #expect(invoice.totalWithoutVatAmount?.amount == 1000)
@@ -296,7 +302,7 @@ struct SwissInvoiceTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: 100, currency: .chf)
+            currency: .chf
         )
         #expect(invoice.totalVatAmount == nil)
     }
@@ -305,7 +311,7 @@ struct SwissInvoiceTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: 100, currency: .chf)
+            currency: .chf
         )
         #expect(invoice.totalWithoutVatAmount == nil)
     }
@@ -314,10 +320,11 @@ struct SwissInvoiceTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: 100, currency: .chf),
+            currency: .chf,
             vatNr: "CHE-123.456.789 MWST",
             subject: "Rechnung Oktober",
             leadingText: "Sehr geehrte Damen und Herren",
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: 100, currency: .chf))],
             trailingText: "Zahlbar innert 30 Tagen"
         )
         #expect(invoice.vatNr == "CHE-123.456.789 MWST")
@@ -330,7 +337,8 @@ struct SwissInvoiceTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: 100, currency: .chf),
+            currency: .chf,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: 100, currency: .chf))],
             fontName: "Roboto",
             fontSize: 12
         )

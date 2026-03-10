@@ -35,7 +35,8 @@ struct InvoicePDFRendererTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf)
+            currency: .chf,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .chf))]
         )
         let data = invoice.pdfData()
         #expect(!data.isEmpty)
@@ -45,7 +46,8 @@ struct InvoicePDFRendererTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf)
+            currency: .chf,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .chf))]
         )
         let data = invoice.pdfData()
         let headerString = String(data: data.prefix(5), encoding: .ascii)
@@ -56,7 +58,8 @@ struct InvoicePDFRendererTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf)
+            currency: .chf,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .chf))]
         )
         let data = invoice.pdfData()
         let pdf = PDFDocument(data: data)
@@ -75,7 +78,8 @@ struct InvoicePDFRendererTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "50.00")!, currency: .chf)
+            currency: .chf,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "50.00")!, currency: .chf))]
         )
         let data = invoice.pdfData()
         #expect(!data.isEmpty)
@@ -88,13 +92,14 @@ struct InvoicePDFRendererTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "150.75")!, currency: .chf),
+            currency: .chf,
             debtor: debtor,
             referenceType: .qrReference,
             reference: "210000000003139471430009017",
             additionalInfo: "Rechnung Nr. 10234",
             title: "Stromrechnung",
-            invoiceDate: Date()
+            invoiceDate: Date(),
+            lineItems: [InvoiceLineItem(description: "Strom", amount: Money(amount: Decimal(string: "150.75")!, currency: .chf))]
         )
         let data = invoice.pdfData()
         #expect(!data.isEmpty)
@@ -120,7 +125,7 @@ struct InvoicePDFRendererTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "1750.00")!, currency: .chf),
+            currency: .chf,
             debtor: debtor,
             title: "Invoice",
             invoiceDate: Date(),
@@ -137,8 +142,9 @@ struct InvoicePDFRendererTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf),
-            debtor: debtor
+            currency: .chf,
+            debtor: debtor,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .chf))]
         )
         let data = invoice.pdfData()
         let pdf = PDFDocument(data: data)
@@ -164,7 +170,7 @@ struct InvoicePDFRendererTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "1081.00")!, currency: .chf),
+            currency: .chf,
             debtor: debtor,
             lineItems: items
         )
@@ -179,7 +185,7 @@ struct InvoicePDFRendererTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf),
+            currency: .chf,
             debtor: debtor,
             subject: "Oktober 2024",
             leadingText: "Sehr geehrte Damen und Herren",
@@ -202,7 +208,8 @@ struct InvoicePDFRendererTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf)
+            currency: .chf,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .chf))]
         )
         let data = invoice.pdfData()
         #expect(!data.isEmpty)
@@ -214,8 +221,9 @@ struct InvoicePDFRendererTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "250.00")!, currency: .eur),
-            debtor: debtor
+            currency: .eur,
+            debtor: debtor,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "250.00")!, currency: .eur))]
         )
         let data = invoice.pdfData()
         let pdf = PDFDocument(data: data)
@@ -227,10 +235,11 @@ struct InvoicePDFRendererTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf),
+            currency: .chf,
             debtor: debtor,
             referenceType: .qrReference,
-            reference: "210000000003139471430009017"
+            reference: "210000000003139471430009017",
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .chf))]
         )
         let data = invoice.pdfData()
         let pdf = PDFDocument(data: data)
@@ -242,7 +251,8 @@ struct InvoicePDFRendererTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf),
+            currency: .chf,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .chf))],
             fontName: "Courier",
             fontSize: 12
         )

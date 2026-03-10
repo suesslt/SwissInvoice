@@ -24,7 +24,6 @@ struct FontTypeTests {
     }
 
     @Test func fontSizeNilForDefaults() {
-        #expect(FontType.standard.fontSize == nil)
         #expect(FontType.subject.fontSize == nil)
         #expect(FontType.standardBold.fontSize == nil)
     }
@@ -102,7 +101,7 @@ struct FontTypeTests {
     // MARK: - CaseIterable
 
     @Test func allCases() {
-        #expect(FontType.allCases.count == 15)
+        #expect(FontType.allCases.count == 19)
     }
 
     // MARK: - Raw Values

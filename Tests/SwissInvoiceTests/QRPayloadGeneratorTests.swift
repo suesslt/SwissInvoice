@@ -38,7 +38,8 @@ struct QRPayloadGeneratorTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "150.75")!, currency: .chf)
+            currency: .chf,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "150.75")!, currency: .chf))]
         )
         let payload = invoice.qrPayload()
         let lines = payload.components(separatedBy: "\n")
@@ -53,10 +54,11 @@ struct QRPayloadGeneratorTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "150.75")!, currency: .chf),
+            currency: .chf,
             debtor: debtor,
             referenceType: .qrReference,
-            reference: "210000000003139471430009017"
+            reference: "210000000003139471430009017",
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "150.75")!, currency: .chf))]
         )
         let payload = invoice.qrPayload()
         let lines = payload.components(separatedBy: "\n")
@@ -70,7 +72,8 @@ struct QRPayloadGeneratorTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH12 3000 0000 0000 1234 5",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf)
+            currency: .chf,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .chf))]
         )
         let payload = invoice.qrPayload()
         let lines = payload.components(separatedBy: "\n")
@@ -83,11 +86,11 @@ struct QRPayloadGeneratorTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf)
+            currency: .chf,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .chf))]
         )
         let payload = invoice.qrPayload()
         let lines = payload.components(separatedBy: "\n")
-        // Lines 4-10: Address type S + 6 fields
         #expect(lines[4] == "S")
         #expect(lines[5] == "Muster AG")
         #expect(lines[6] == "Bahnhofstrasse")
@@ -103,11 +106,11 @@ struct QRPayloadGeneratorTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf)
+            currency: .chf,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .chf))]
         )
         let payload = invoice.qrPayload()
         let lines = payload.components(separatedBy: "\n")
-        // Lines 11-17: 7 empty lines
         for i in 11...17 {
             #expect(lines[i] == "", "Line \(i) should be empty (ultimate creditor)")
         }
@@ -119,7 +122,8 @@ struct QRPayloadGeneratorTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "150.75")!, currency: .chf)
+            currency: .chf,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "150.75")!, currency: .chf))]
         )
         let payload = invoice.qrPayload()
         let lines = payload.components(separatedBy: "\n")
@@ -130,7 +134,7 @@ struct QRPayloadGeneratorTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money.zero(.chf)
+            currency: .chf
         )
         let payload = invoice.qrPayload()
         let lines = payload.components(separatedBy: "\n")
@@ -143,7 +147,8 @@ struct QRPayloadGeneratorTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf)
+            currency: .chf,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .chf))]
         )
         let payload = invoice.qrPayload()
         let lines = payload.components(separatedBy: "\n")
@@ -154,7 +159,8 @@ struct QRPayloadGeneratorTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .eur)
+            currency: .eur,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .eur))]
         )
         let payload = invoice.qrPayload()
         let lines = payload.components(separatedBy: "\n")
@@ -167,12 +173,12 @@ struct QRPayloadGeneratorTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf),
-            debtor: debtor
+            currency: .chf,
+            debtor: debtor,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .chf))]
         )
         let payload = invoice.qrPayload()
         let lines = payload.components(separatedBy: "\n")
-        // Lines 20-26: Debtor address
         #expect(lines[20] == "S")
         #expect(lines[21] == "Hans Mustermann")
         #expect(lines[22] == "Rebenweg")
@@ -186,11 +192,11 @@ struct QRPayloadGeneratorTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf)
+            currency: .chf,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .chf))]
         )
         let payload = invoice.qrPayload()
         let lines = payload.components(separatedBy: "\n")
-        // Lines 20-26: 7 empty lines
         for i in 20...26 {
             #expect(lines[i] == "", "Line \(i) should be empty (no debtor)")
         }
@@ -202,23 +208,25 @@ struct QRPayloadGeneratorTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf),
+            currency: .chf,
             referenceType: .qrReference,
-            reference: "21 00000 00003 13947 14300 09017"
+            reference: "21 00000 00003 13947 14300 09017",
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .chf))]
         )
         let payload = invoice.qrPayload()
         let lines = payload.components(separatedBy: "\n")
         #expect(lines[27] == "QRR")
-        #expect(lines[28] == "210000000003139471430009017") // No spaces
+        #expect(lines[28] == "210000000003139471430009017")
     }
 
     @Test func referenceTypeSCOR() {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf),
+            currency: .chf,
             referenceType: .creditorReference,
-            reference: "RF18 5390 0754 7034"
+            reference: "RF18 5390 0754 7034",
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .chf))]
         )
         let payload = invoice.qrPayload()
         let lines = payload.components(separatedBy: "\n")
@@ -230,8 +238,9 @@ struct QRPayloadGeneratorTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf),
-            referenceType: .none
+            currency: .chf,
+            referenceType: .none,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .chf))]
         )
         let payload = invoice.qrPayload()
         let lines = payload.components(separatedBy: "\n")
@@ -245,8 +254,9 @@ struct QRPayloadGeneratorTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf),
-            additionalInfo: "Rechnung Nr. 10234"
+            currency: .chf,
+            additionalInfo: "Rechnung Nr. 10234",
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .chf))]
         )
         let payload = invoice.qrPayload()
         let lines = payload.components(separatedBy: "\n")
@@ -258,7 +268,8 @@ struct QRPayloadGeneratorTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH1230000000000012345",
-            amount: Money(amount: Decimal(string: "100.00")!, currency: .chf)
+            currency: .chf,
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "100.00")!, currency: .chf))]
         )
         let payload = invoice.qrPayload()
         let lines = payload.components(separatedBy: "\n")
@@ -272,11 +283,12 @@ struct QRPayloadGeneratorTests {
         let invoice = SwissInvoice(
             creditor: creditor,
             iban: "CH12 3000 0000 0000 1234 5",
-            amount: Money(amount: Decimal(string: "150.75")!, currency: .chf),
+            currency: .chf,
             debtor: debtor,
             referenceType: .qrReference,
             reference: "21 00000 00003 13947 14300 09017",
-            additionalInfo: "Rechnung Nr. 10234"
+            additionalInfo: "Rechnung Nr. 10234",
+            lineItems: [InvoiceLineItem(description: "Service", amount: Money(amount: Decimal(string: "150.75")!, currency: .chf))]
         )
         let payload = invoice.qrPayload()
         let lines = payload.components(separatedBy: "\n")

@@ -17,7 +17,7 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/suesslt/score.git", branch: "main"),
+        .package(path: "../score"),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.

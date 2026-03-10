@@ -5,8 +5,9 @@ import Foundation
 @Suite("QR Code Generator Tests")
 struct QRCodeGeneratorTests {
 
-    // MARK: - generateImage
+    // MARK: - generateImage (UIKit only)
 
+    #if canImport(UIKit)
     @Test func generatesImage() {
         let payload = "SPC\n0200\n1\nCH1230000000000012345\nS\nTest\nStrasse\n1\n8000\nZürich\nCH\n\n\n\n\n\n\n\n100.00\nCHF\n\n\n\n\n\n\n\nNON\n\n\nEPD\n\n"
         let image = QRCodeGenerator.generateImage(payload: payload, size: 200)
@@ -34,7 +35,6 @@ struct QRCodeGeneratorTests {
         let image = QRCodeGenerator.generateImage(payload: payload, size: 130, pixelSize: 1087)
         #expect(image != nil)
         if let image = image {
-            // Pixel dimensions should be 1087 (size * scale)
             let pixelWidth = image.size.width * image.scale
             #expect(abs(pixelWidth - 1087) < 2)
         }
@@ -42,14 +42,14 @@ struct QRCodeGeneratorTests {
 
     @Test func defaultPixelSizeIsPrintQuality() {
         let payload = "SPC\n0200\n1\nCH1230000000000012345"
-        // Default pixelSize should produce 1087px (600 DPI at 46mm)
         let image = QRCodeGenerator.generateImage(payload: payload, size: 130)
         #expect(image != nil)
         if let image = image {
             let pixelWidth = image.size.width * image.scale
-            #expect(pixelWidth >= 1000) // At least 1000px for print quality
+            #expect(pixelWidth >= 1000)
         }
     }
+    #endif
 
     // MARK: - generateModulesCGImage
 
