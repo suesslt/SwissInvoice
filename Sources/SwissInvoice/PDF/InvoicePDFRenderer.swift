@@ -80,17 +80,18 @@ private let swissLocale = Locale(identifier: "de_CH")
 public class InvoicePDFRenderer: PDFRenderer {
 
     public func render(invoice: SwissInvoice) -> Data {
+        let strings = InvoiceStrings.forLanguage(invoice.language)
         guard let (ctx, pdfData) = beginPDF() else { return Data() }
         ctx.scaleBy(x: 1.004, y: 1.0)
         drawBriefkopf(ctx: ctx, invoice: invoice)
         drawAdressfeld(ctx: ctx, invoice: invoice)
-        _ = drawLeitwoerter(ctx: ctx, invoice: invoice)
+        _ = drawLeitwoerter(ctx: ctx, invoice: invoice, strings: strings)
         var yPosition: CGFloat = PDFMasse.topContent
         yPosition += drawSubject(ctx: ctx, invoice: invoice, yPosition: yPosition)
         yPosition += drawEmptyLine(fontType: FontType.standard)
-        drawContent(ctx: ctx, invoice: invoice, yPosition: yPosition)
-        drawPaymentPart(invoice: invoice, in: ctx)
-        drawReceipt(invoice: invoice, in: ctx)
+        drawContent(ctx: ctx, invoice: invoice, strings: strings, yPosition: yPosition)
+        drawPaymentPart(invoice: invoice, strings: strings, in: ctx)
+        drawReceipt(invoice: invoice, strings: strings, in: ctx)
         drawFalzmarken(in: ctx)
         return endPDF(context: ctx, pdfData: pdfData)
     }
@@ -138,27 +139,27 @@ public class InvoicePDFRenderer: PDFRenderer {
         }
     }
 
-    private func drawLeitwoerter(ctx: CGContext, invoice: SwissInvoice) -> CGFloat {
+    private func drawLeitwoerter(ctx: CGContext, invoice: SwissInvoice, strings: InvoiceStrings) -> CGFloat {
         var result = 0.0
         let yPosition = PDFMasse.leitwoerterY
         if let date = invoice.invoiceDate {
-            _ = drawText(context: ctx, text: "Rechnungsdatum:", x: PDFMasse.marginLeft, y: yPosition + result, fontType: .standardSmall)
+            _ = drawText(context: ctx, text: strings.invoiceDateLabel, x: PDFMasse.marginLeft, y: yPosition + result, fontType: .standardSmall)
             let formatter = DateFormatter()
             formatter.dateStyle = .long
-            formatter.locale = Locale(identifier: "de_CH")
+            formatter.locale = Locale(identifier: invoice.language.localeIdentifier)
             let dateStr = formatter.string(from: date)
             result += drawText(context: ctx, text: dateStr, x: PDFMasse.leitwoerterColumn, y: yPosition + result, fontType: .standardSmall)
         }
         if let reference = invoice.reference, !reference.isEmpty {
-            _ = drawText(context: ctx, text: "Referenz:", x: PDFMasse.marginLeft, y: yPosition + result, fontType: .standardSmall)
+            _ = drawText(context: ctx, text: strings.referenceLabel, x: PDFMasse.marginLeft, y: yPosition + result, fontType: .standardSmall)
             result += drawText(context: ctx, text: reference, x: PDFMasse.leitwoerterColumn, y: yPosition + result, fontType: .standardSmall)
         }
         if let additionalInfo = invoice.additionalInfo, !additionalInfo.isEmpty {
-            _ = drawText(context: ctx, text: "Zusatzinformation:", x: PDFMasse.marginLeft, y: yPosition + result, fontType: .standardSmall)
+            _ = drawText(context: ctx, text: strings.additionalInfoLabel, x: PDFMasse.marginLeft, y: yPosition + result, fontType: .standardSmall)
             result += drawText(context: ctx, text: additionalInfo, x: PDFMasse.leitwoerterColumn, y: yPosition + result, fontType: .standardSmall)
         }
         if let vatNr = invoice.vatNr, !vatNr.isEmpty {
-            _ = drawText(context: ctx, text: "UID (MWST):", x: PDFMasse.marginLeft, y: yPosition + result, fontType: .standardSmall)
+            _ = drawText(context: ctx, text: strings.vatNumberLabel, x: PDFMasse.marginLeft, y: yPosition + result, fontType: .standardSmall)
             result += drawText(context: ctx, text: vatNr, x: PDFMasse.leitwoerterColumn, y: yPosition + result, fontType: .standardSmall)
         }
         return result
@@ -187,7 +188,7 @@ public class InvoicePDFRenderer: PDFRenderer {
         return result
     }
 
-    private func drawContent(ctx: CGContext, invoice: SwissInvoice, yPosition: CGFloat) {
+    private func drawContent(ctx: CGContext, invoice: SwissInvoice, strings: InvoiceStrings, yPosition: CGFloat) {
         var result = 0.0
         if let leadingText = invoice.leadingText, !leadingText.isEmpty {
             result += drawMultiline(
@@ -199,7 +200,7 @@ public class InvoicePDFRenderer: PDFRenderer {
             )
             result += drawEmptyLine(fontType: FontType.standard)
         }
-        result += drawLineItems(ctx: ctx, invoice: invoice, yPosition: yPosition + result)
+        result += drawLineItems(ctx: ctx, invoice: invoice, strings: strings, yPosition: yPosition + result)
         _ = drawTrailingText(ctx: ctx, invoice: invoice, yPosition: yPosition + result)
     }
 
@@ -217,23 +218,23 @@ public class InvoicePDFRenderer: PDFRenderer {
 
     // MARK: - Line Items Table
 
-    private func drawLineItems(ctx: CGContext, invoice: SwissInvoice, yPosition: CGFloat) -> CGFloat {
+    private func drawLineItems(ctx: CGContext, invoice: SwissInvoice, strings: InvoiceStrings, yPosition: CGFloat) -> CGFloat {
         var result = 0.0
         if !invoice.lineItems.isEmpty {
             // Table header
-            _ = drawText(context: ctx, text: "Description", x: PDFMasse.marginLeft, y: yPosition + result, fontType: .titleInvoiceLines)
+            _ = drawText(context: ctx, text: strings.descriptionHeader, x: PDFMasse.marginLeft, y: yPosition + result, fontType: .titleInvoiceLines)
             if invoice.hasUnitItems() {
-                _ = drawText(context: ctx, text: "Qty", x: PDFMasse.quantityColumn, y: yPosition + result, fontType: .titleInvoiceLines)
-                _ = drawText(context: ctx, text: "Unit", x: PDFMasse.unitColumn, y: yPosition + result, fontType: .titleInvoiceLines)
+                _ = drawText(context: ctx, text: strings.qtyHeader, x: PDFMasse.quantityColumn, y: yPosition + result, fontType: .titleInvoiceLines)
+                _ = drawText(context: ctx, text: strings.unitHeader, x: PDFMasse.unitColumn, y: yPosition + result, fontType: .titleInvoiceLines)
                 _ = drawTextRightAligned(
                     context: ctx,
-                    text: "Unit Price",
+                    text: strings.unitPriceHeader,
                     rightX: PDFMasse.unitPriceColumn,
                     y: yPosition + result,
                     fontType: .titleInvoiceLines
                 )
             }
-            result += drawTextRightAligned(context: ctx, text: "Amount", rightX: PDFMasse.rightUsableBorder, y: yPosition + result, fontType: .titleInvoiceLines)
+            result += drawTextRightAligned(context: ctx, text: strings.amountHeader, rightX: PDFMasse.rightUsableBorder, y: yPosition + result, fontType: .titleInvoiceLines)
 
             result += 2
             drawHRule(context: ctx, y: yPosition + result, from: PDFMasse.marginLeft, to: PDFMasse.rightUsableBorder, lineWidth: 0.3)
@@ -274,7 +275,7 @@ public class InvoicePDFRenderer: PDFRenderer {
         if invoice.hasVat() {
             _ = drawText(
                 context: ctx,
-                text: "Total ohne MWST",
+                text: strings.totalWithoutVat,
                 x: PDFMasse.quantityColumn,
                 y: yPosition + result,
                 fontType: .standardBold
@@ -289,7 +290,7 @@ public class InvoicePDFRenderer: PDFRenderer {
             for item in invoice.vatItems {
                 _ = drawText(
                     context: ctx,
-                    text: "MWST " + item.vatRate!.formatted() + "%",
+                    text: strings.vatPrefix + " " + item.vatRate!.formatted() + "%",
                     x: PDFMasse.quantityColumn,
                     y: yPosition + result,
                     fontType: .standardBold
@@ -303,7 +304,7 @@ public class InvoicePDFRenderer: PDFRenderer {
                 )
             }
         }
-        _ = drawText(context: ctx, text: "Total", x: PDFMasse.quantityColumn, y: yPosition + result, fontType: .standardBold)
+        _ = drawText(context: ctx, text: strings.total, x: PDFMasse.quantityColumn, y: yPosition + result, fontType: .standardBold)
         result += drawTextRightAligned(
             context: ctx,
             text: invoice.amount.formatted(locale: swissLocale),
@@ -320,13 +321,13 @@ public class InvoicePDFRenderer: PDFRenderer {
 
     // MARK: - Payment Part (Zahlteil) — right 148mm
 
-    private func drawPaymentPart(invoice: SwissInvoice, in ctx: CGContext) {
+    private func drawPaymentPart(invoice: SwissInvoice, strings: InvoiceStrings, in ctx: CGContext) {
         let zahlteilY = PDFMasse.pageHeight - PDFMasse.zahlteilHeight
         drawZahlteilSeparator(in: ctx, y: zahlteilY)
         drawVerticalLine(context: ctx, x: PDFMasse.verticalSepX, fromY: zahlteilY, toY: PDFMasse.pageHeight, dashed: true)
         let leftColX = PDFMasse.verticalSepX + 5 * PDFMasse.ptPerMm
         var y = zahlteilY + 10
-        y += drawText(context: ctx, text: "Zahlteil", x: leftColX, y: y, fontType: .titlePayment)
+        y += drawText(context: ctx, text: strings.paymentPart, x: leftColX, y: y, fontType: .titlePayment)
 
         // QR Code (exactly 46mm per SIX spec, modules only + vector Swiss Cross)
         let payload = QRPayloadGenerator.generatePayload(for: invoice)
@@ -351,7 +352,7 @@ public class InvoicePDFRenderer: PDFRenderer {
         // Account / Payable to
         ry += drawText(
             context: ctx,
-            text: "Konto / Zahlbar an",
+            text: strings.accountPayableTo,
             x: rightColX,
             y: ry,
             fontType: .headerPayment
@@ -363,7 +364,7 @@ public class InvoicePDFRenderer: PDFRenderer {
         // Reference
         if let reference = invoice.reference, !reference.isEmpty {
             ry += drawEmptyLine(fontType: .headerPayment)
-            ry += drawText(context: ctx, text: "Referenz", x: rightColX, y: ry, fontType: .headerPayment)
+            ry += drawText(context: ctx, text: strings.paymentReference, x: rightColX, y: ry, fontType: .headerPayment)
             ry += drawText(context: ctx, text: reference, x: rightColX, y: ry, fontType: .textPayment)
         }
 
@@ -372,7 +373,7 @@ public class InvoicePDFRenderer: PDFRenderer {
             ry += drawEmptyLine(fontType: .headerPayment)
             ry += drawText(
                 context: ctx,
-                text: "Zusätzliche Informationen",
+                text: strings.additionalInformation,
                 x: rightColX,
                 y: ry,
                 fontType: .headerPayment
@@ -384,7 +385,7 @@ public class InvoicePDFRenderer: PDFRenderer {
         ry += drawEmptyLine(fontType: .headerPayment)
         ry += drawText(
             context: ctx,
-            text: "Zahlbar durch",
+            text: strings.payableBy,
             x: rightColX,
             y: ry,
             fontType: .headerPayment
@@ -394,10 +395,10 @@ public class InvoicePDFRenderer: PDFRenderer {
         }
 
         var currAmtY = PDFMasse.pageHeight - 34 * PDFMasse.ptPerMm
-        _ = drawText(context: ctx, text: "Währung", x: leftColX, y: currAmtY, fontType: .headerPayment)
+        _ = drawText(context: ctx, text: strings.currency, x: leftColX, y: currAmtY, fontType: .headerPayment)
         currAmtY += drawText(
             context: ctx,
-            text: "Betrag",
+            text: strings.amountLabel,
             x: leftColX + 30 * PDFMasse.ptPerMm,
             y: currAmtY,
             fontType: .headerPayment
@@ -413,17 +414,17 @@ public class InvoicePDFRenderer: PDFRenderer {
     }
 
     // MARK: - Receipt (Empfangsschein) — left 62mm
-    private func drawReceipt(invoice: SwissInvoice, in ctx: CGContext) {
+    private func drawReceipt(invoice: SwissInvoice, strings: InvoiceStrings, in ctx: CGContext) {
         let zahlteilY = PDFMasse.pageHeight - PDFMasse.zahlteilHeight
         let leftX: CGFloat = 5 * PDFMasse.ptPerMm
         var y = zahlteilY + 10
-        y += drawText(context: ctx, text: "Empfangsschein", x: leftX, y: y, fontType: .titleReceiver)
+        y += drawText(context: ctx, text: strings.receipt, x: leftX, y: y, fontType: .titleReceiver)
         y += drawEmptyLine(fontType: .titleReceiver)
 
         // Account / Payable to
         y += drawText(
             context: ctx,
-            text: "Konto / Zahlbar an",
+            text: strings.accountPayableTo,
             x: leftX,
             y: y,
             fontType: .headerReceiver
@@ -436,23 +437,23 @@ public class InvoicePDFRenderer: PDFRenderer {
         // Reference
         if let reference = invoice.reference, !reference.isEmpty {
             y += drawEmptyLine(fontType: .headerReceiver)
-            y += drawText(context: ctx, text: "Referenz", x: leftX, y: y, fontType: .headerReceiver)
+            y += drawText(context: ctx, text: strings.paymentReference, x: leftX, y: y, fontType: .headerReceiver)
             y += drawText(context: ctx, text: reference, x: leftX, y: y, fontType: .textReceiver)
         }
 
         // Payable by
         y += drawEmptyLine(fontType: .headerReceiver)
-        y += drawText(context: ctx, text: "Zahlbar durch", x: leftX, y: y, fontType: .headerReceiver)
+        y += drawText(context: ctx, text: strings.payableBy, x: leftX, y: y, fontType: .headerReceiver)
         for line in (invoice.debtor ?? .empty).paymentAddress() {
             y += drawText(context: ctx, text: line, x: leftX, y: y, fontType: .textReceiver)
         }
 
         // Currency & Amount
         let currAmtY = PDFMasse.pageHeight - 34 * PDFMasse.ptPerMm
-        _ = drawText(context: ctx, text: "Währung", x: leftX, y: currAmtY, fontType: .headerReceiver)
+        _ = drawText(context: ctx, text: strings.currency, x: leftX, y: currAmtY, fontType: .headerReceiver)
         _ = drawText(
             context: ctx,
-            text: "Betrag",
+            text: strings.amountLabel,
             x: leftX + 18 * PDFMasse.ptPerMm,
             y: currAmtY,
             fontType: .headerReceiver
@@ -475,7 +476,7 @@ public class InvoicePDFRenderer: PDFRenderer {
 
         // "Annahmestelle" (acceptance point) — bottom right of receipt
         let acceptY = PDFMasse.pageHeight - 20 * PDFMasse.ptPerMm
-        _ = drawTextRightAligned(context: ctx, text: "Annahmestelle", rightX: PDFMasse.annahmestelle, y: acceptY, fontType: .textReceiver)
+        _ = drawTextRightAligned(context: ctx, text: strings.acceptancePoint, rightX: PDFMasse.annahmestelle, y: acceptY, fontType: .textReceiver)
     }
 
     // MARK: - Invoice-specific Drawing Helpers

@@ -27,6 +27,9 @@ let package = Package(
             dependencies: [
                 .product(name: "Score", package: "score"),
                 .product(name: "ScoreUI", package: "score"),
+            ],
+            resources: [
+                .process("Resources"),
             ]
         ),
         .testTarget(

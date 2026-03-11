@@ -45,6 +45,7 @@ public struct SwissInvoice: Sendable {
     public let currency: Currency
     public let lineItems: [InvoiceLineItem]
     public let trailingText: String?
+    public let language: InvoiceLanguage
     public let fontName: String?
     public let fontSize: CGFloat?
 
@@ -68,6 +69,7 @@ public struct SwissInvoice: Sendable {
         invoiceDate: Date? = nil,
         lineItems: [InvoiceLineItem] = [],
         trailingText: String? = nil,
+        language: InvoiceLanguage = .de,
         fontName: String? = nil,
         fontSize: CGFloat? = nil
     ) {
@@ -85,6 +87,7 @@ public struct SwissInvoice: Sendable {
         self.invoiceDate = invoiceDate
         self.lineItems = lineItems
         self.trailingText = trailingText
+        self.language = language
         self.fontName = fontName
         self.fontSize = fontSize
     }
@@ -190,14 +193,19 @@ public enum LineItemType: String, CaseIterable, Identifiable, Sendable {
 
     public var id: String { self.rawValue }
 
-    public var label: String {
+    /// Localized label for the given language.
+    public func label(language: InvoiceLanguage = .de) -> String {
+        let strings = InvoiceStrings.forLanguage(language)
         switch self {
         case .fixedPrice:
-            return "Netto-Betrag"
+            return strings.fixedPriceLabel
         case .unitPrice:
-            return "Stückpreis"
+            return strings.unitPriceLabel
         case .vat:
-            return "Mehrwertsteuer"
+            return strings.vatLabel
         }
     }
+
+    /// German label (backward compatibility).
+    public var label: String { label() }
 }

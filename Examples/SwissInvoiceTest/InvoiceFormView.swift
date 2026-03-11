@@ -43,6 +43,9 @@ struct InvoiceFormView: View {
     @State private var referenceType: ReferenceType = .qrReference
     @State private var referenceNumber = "00 00082 07791 22585 74212 86694"
 
+    // Language
+    @State private var selectedLanguage: InvoiceLanguage = .de
+
     // Invoice
     @State private var invoiceTitle = "Rechnung"
     @State private var subject = "Rechnung für Erbrachte Leistungen"
@@ -151,6 +154,11 @@ struct InvoiceFormView: View {
             }
 
             Section("Invoice Details") {
+                Picker("Language", selection: $selectedLanguage) {
+                    Text("Deutsch").tag(InvoiceLanguage.de)
+                    Text("English").tag(InvoiceLanguage.en)
+                    Text("Français").tag(InvoiceLanguage.fr)
+                }
                 TextField("Title", text: $invoiceTitle)
                 TextField("Subject (Betreff)", text: $subject)
                 DatePicker("Date", selection: $invoiceDate, displayedComponents: .date)
@@ -343,6 +351,7 @@ struct InvoiceFormView: View {
             invoiceDate: invoiceDate,
             lineItems: items,
             trailingText: trailingText,
+            language: selectedLanguage,
             fontName: resolvedFontName,
             fontSize: CGFloat(Double(fontSizeText) ?? 12)
         )
