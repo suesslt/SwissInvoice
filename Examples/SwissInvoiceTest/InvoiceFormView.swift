@@ -5,20 +5,30 @@ import SwissInvoice
 
 struct InvoiceFormView: View {
     // Creditor
-    @State private var creditorName = "Thomas Suessli - Mandate und Beratung"
-    @State private var creditorAddressAddition = "Postfach 2663"
+    @State private var creditorCompanyName = "Thomas Suessli - Mandate und Beratung"
+    @State private var creditorAttentionTo = ""
+    @State private var creditorFirstName = ""
+    @State private var creditorLastName = ""
+    @State private var creditorAddressAddition1 = ""
+    @State private var creditorAddressAddition2 = ""
     @State private var creditorStreet = "Haselwart"
     @State private var creditorHouseNumber = "29"
+    @State private var creditorMailbox = "Postfach 2663"
     @State private var creditorPostalCode = "6210"
     @State private var creditorCity = "Sursee"
     @State private var creditorCountryCode = "CH"
 
     // Debtor
     @State private var showDebtor = true
-    @State private var debtorName = "Simon Muster"
-    @State private var debtorAddressAddition = "c/o Firma Muster"
+    @State private var debtorCompanyName = ""
+    @State private var debtorAttentionTo = ""
+    @State private var debtorFirstName = "Simon"
+    @State private var debtorLastName = "Muster"
+    @State private var debtorAddressAddition1 = ""
+    @State private var debtorAddressAddition2 = "c/o Firma Muster"
     @State private var debtorStreet = "Musterstrasse"
     @State private var debtorHouseNumber = "1a"
+    @State private var debtorMailbox = ""
     @State private var debtorPostalCode = "8000"
     @State private var debtorCity = "Seldwyla"
     @State private var debtorCountryCode = "CH"
@@ -87,10 +97,15 @@ struct InvoiceFormView: View {
                 }
             }
             Section("Creditor") {
-                TextField("Name", text: $creditorName)
-                TextField("Address Addition", text: $creditorAddressAddition)
+                TextField("Company Name", text: $creditorCompanyName)
+                TextField("Attention To", text: $creditorAttentionTo)
+                TextField("First Name", text: $creditorFirstName)
+                TextField("Last Name", text: $creditorLastName)
+                TextField("Address Addition 1", text: $creditorAddressAddition1)
+                TextField("Address Addition 2", text: $creditorAddressAddition2)
                 TextField("Street", text: $creditorStreet)
                 TextField("House Number", text: $creditorHouseNumber)
+                TextField("Mailbox", text: $creditorMailbox)
                 TextField("Postal Code", text: $creditorPostalCode)
                 TextField("City", text: $creditorCity)
                 TextField("Country Code", text: $creditorCountryCode)
@@ -99,10 +114,15 @@ struct InvoiceFormView: View {
             Section("Debtor") {
                 Toggle("Include Debtor", isOn: $showDebtor)
                 if showDebtor {
-                    TextField("Name", text: $debtorName)
-                    TextField("Address Addition", text: $debtorAddressAddition)
+                    TextField("Company Name", text: $debtorCompanyName)
+                    TextField("Attention To", text: $debtorAttentionTo)
+                    TextField("First Name", text: $debtorFirstName)
+                    TextField("Last Name", text: $debtorLastName)
+                    TextField("Address Addition 1", text: $debtorAddressAddition1)
+                    TextField("Address Addition 2", text: $debtorAddressAddition2)
                     TextField("Street", text: $debtorStreet)
                     TextField("House Number", text: $debtorHouseNumber)
+                    TextField("Mailbox", text: $debtorMailbox)
                     TextField("Postal Code", text: $debtorPostalCode)
                     TextField("City", text: $debtorCity)
                     TextField("Country Code", text: $debtorCountryCode)
@@ -240,20 +260,30 @@ struct InvoiceFormView: View {
 
     private func buildInvoice() -> SwissInvoice {
         let creditor = Address(
-            name: creditorName,
-            addressAddition: creditorAddressAddition,
+            companyName: creditorCompanyName,
+            attentionTo: creditorAttentionTo,
+            firstName: creditorFirstName,
+            lastName: creditorLastName,
+            addressAddition1: creditorAddressAddition1,
+            addressAddition2: creditorAddressAddition2,
             street: creditorStreet,
             houseNumber: creditorHouseNumber,
+            mailbox: creditorMailbox,
             postalCode: creditorPostalCode,
             city: creditorCity,
             countryCode: creditorCountryCode
         )
 
         let debtor = Address(
-            name: debtorName,
-            addressAddition: debtorAddressAddition,
+            companyName: debtorCompanyName,
+            attentionTo: debtorAttentionTo,
+            firstName: debtorFirstName,
+            lastName: debtorLastName,
+            addressAddition1: debtorAddressAddition1,
+            addressAddition2: debtorAddressAddition2,
             street: debtorStreet,
             houseNumber: debtorHouseNumber,
+            mailbox: debtorMailbox,
             postalCode: debtorPostalCode,
             city: debtorCity,
             countryCode: debtorCountryCode

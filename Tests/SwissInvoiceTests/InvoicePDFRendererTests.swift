@@ -9,8 +9,7 @@ struct InvoicePDFRendererTests {
 
     private var creditor: Address {
         Address(
-            name: "Muster AG",
-            addressAddition: "",
+            companyName: "Muster AG",
             street: "Bahnhofstrasse",
             houseNumber: "1",
             postalCode: "8001",
@@ -21,8 +20,8 @@ struct InvoicePDFRendererTests {
 
     private var debtor: Address {
         Address(
-            name: "Hans Mustermann",
-            addressAddition: "",
+            firstName: "Hans",
+            lastName: "Mustermann",
             street: "Rebenweg",
             houseNumber: "12",
             postalCode: "3000",

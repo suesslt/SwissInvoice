@@ -58,7 +58,7 @@ public enum QRPayloadGenerator {
     private static func formatAddress(_ addr: Address) -> [String] {
         [
             "S",                // Address type: Structured
-            addr.name,
+            addr.displayName,
             addr.street,
             addr.houseNumber,
             addr.postalCode,

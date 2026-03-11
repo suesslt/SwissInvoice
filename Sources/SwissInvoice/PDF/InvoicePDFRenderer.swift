@@ -97,9 +97,11 @@ public class InvoicePDFRenderer: PDFRenderer {
 
     private func drawBriefkopf(ctx: CGContext, invoice: SwissInvoice) {
         var y: CGFloat = PDFMasse.marginTop
-        y += drawText(context: ctx, text: invoice.creditor.name, x: PDFMasse.marginLeft, y: y, fontType: .title)
-        let creditorLines = buildAddressLines(invoice.creditor, includeName: false)
-        for line in creditorLines {
+        let creditorLines = invoice.creditor.fullAddress()
+        if let first = creditorLines.first {
+            y += drawText(context: ctx, text: first, x: PDFMasse.marginLeft, y: y, fontType: .title)
+        }
+        for line in creditorLines.dropFirst() {
             y += drawText(context: ctx, text: line, x: PDFMasse.marginLeft, y: y, fontType: .standard)
         }
         if let title = invoice.title {
@@ -119,7 +121,7 @@ public class InvoicePDFRenderer: PDFRenderer {
         var leftY = PDFMasse.adressfeldTop
 
         // Center vertically
-        let debtorLines = buildAddressLines(invoice.debtor ?? .empty, includeName: true)
+        let debtorLines = (invoice.debtor ?? .empty).fullAddress()
         let nrLines = debtorLines.count
         let textHeight = nrLines * Int(PDFMasse.fontBody) + (nrLines - 1) * 2
         let yOffset = (PDFMasse.adressfeldHeight - CGFloat(textHeight)) / PDFMasse.lineSpacing
@@ -355,27 +357,9 @@ public class InvoicePDFRenderer: PDFRenderer {
             fontType: .headerPayment
         )
         ry += drawText(context: ctx, text: invoice.iban, x: rightColX, y: ry, fontType: .textPayment)
-        ry += drawText(
-            context: ctx,
-            text: invoice.creditor.name,
-            x: rightColX,
-            y: ry,
-            fontType: .textPayment
-        )
-        ry += drawText(
-            context: ctx,
-            text: "\(invoice.creditor.street) \(invoice.creditor.houseNumber)",
-            x: rightColX,
-            y: ry,
-            fontType: .textPayment
-        )
-        ry += drawText(
-            context: ctx,
-            text: "\(invoice.creditor.postalCode) \(invoice.creditor.city)",
-            x: rightColX,
-            y: ry,
-            fontType: .textPayment
-        )
+        for line in invoice.creditor.paymentAddress() {
+            ry += drawText(context: ctx, text: line, x: rightColX, y: ry, fontType: .textPayment)
+        }
         // Reference
         if let reference = invoice.reference, !reference.isEmpty {
             ry += drawEmptyLine(fontType: .headerPayment)
@@ -397,7 +381,6 @@ public class InvoicePDFRenderer: PDFRenderer {
         }
 
         // Payable by
-        let paymentDebtor = invoice.debtor ?? .empty
         ry += drawEmptyLine(fontType: .headerPayment)
         ry += drawText(
             context: ctx,
@@ -406,27 +389,9 @@ public class InvoicePDFRenderer: PDFRenderer {
             y: ry,
             fontType: .headerPayment
         )
-        ry += drawText(
-            context: ctx,
-            text: paymentDebtor.name,
-            x: rightColX,
-            y: ry,
-            fontType: .textPayment
-        )
-        ry += drawText(
-            context: ctx,
-            text: "\(paymentDebtor.street) \(paymentDebtor.houseNumber)",
-            x: rightColX,
-            y: ry,
-            fontType: .textPayment
-        )
-        ry += drawText(
-            context: ctx,
-            text: "\(paymentDebtor.postalCode) \(paymentDebtor.city)",
-            x: rightColX,
-            y: ry,
-            fontType: .textPayment
-        )
+        for line in (invoice.debtor ?? .empty).paymentAddress() {
+            ry += drawText(context: ctx, text: line, x: rightColX, y: ry, fontType: .textPayment)
+        }
 
         var currAmtY = PDFMasse.pageHeight - 34 * PDFMasse.ptPerMm
         _ = drawText(context: ctx, text: "Währung", x: leftColX, y: currAmtY, fontType: .headerPayment)
@@ -464,21 +429,9 @@ public class InvoicePDFRenderer: PDFRenderer {
             fontType: .headerReceiver
         )
         y += drawText(context: ctx, text: invoice.iban, x: leftX, y: y, fontType: .textReceiver)
-        y += drawText(context: ctx, text: invoice.creditor.name, x: leftX, y: y, fontType: .textReceiver)
-        y += drawText(
-            context: ctx,
-            text: "\(invoice.creditor.street) \(invoice.creditor.houseNumber)",
-            x: leftX,
-            y: y,
-            fontType: .textReceiver
-        )
-        y += drawText(
-            context: ctx,
-            text: "\(invoice.creditor.postalCode) \(invoice.creditor.city)",
-            x: leftX,
-            y: y,
-            fontType: .textReceiver
-        )
+        for line in invoice.creditor.paymentAddress() {
+            y += drawText(context: ctx, text: line, x: leftX, y: y, fontType: .textReceiver)
+        }
 
         // Reference
         if let reference = invoice.reference, !reference.isEmpty {
@@ -488,24 +441,11 @@ public class InvoicePDFRenderer: PDFRenderer {
         }
 
         // Payable by
-        let receiptDebtor = invoice.debtor ?? .empty
         y += drawEmptyLine(fontType: .headerReceiver)
         y += drawText(context: ctx, text: "Zahlbar durch", x: leftX, y: y, fontType: .headerReceiver)
-        y += drawText(context: ctx, text: receiptDebtor.name, x: leftX, y: y, fontType: .textReceiver)
-        y += drawText(
-            context: ctx,
-            text: "\(receiptDebtor.street) \(receiptDebtor.houseNumber)",
-            x: leftX,
-            y: y,
-            fontType: .textReceiver
-        )
-        y += drawText(
-            context: ctx,
-            text: "\(receiptDebtor.postalCode) \(receiptDebtor.city)",
-            x: leftX,
-            y: y,
-            fontType: .textReceiver
-        )
+        for line in (invoice.debtor ?? .empty).paymentAddress() {
+            y += drawText(context: ctx, text: line, x: leftX, y: y, fontType: .textReceiver)
+        }
 
         // Currency & Amount
         let currAmtY = PDFMasse.pageHeight - 34 * PDFMasse.ptPerMm
@@ -600,29 +540,4 @@ public class InvoicePDFRenderer: PDFRenderer {
         return suggestedSize.height
     }
 
-    // MARK: - Address Helpers
-
-    /// Builds address lines from an Address, optionally including the name.
-    /// Omits countryCode for CH addresses (domestic).
-    private func buildAddressLines(_ address: Address, includeName: Bool) -> [String] {
-        var result: [String] = []
-        if includeName {
-            result.append(address.name)
-        }
-        if !address.addressAddition.isEmpty {
-            result.append(address.addressAddition)
-        }
-        let street = "\(address.street) \(address.houseNumber)".trimmingCharacters(in: .whitespaces)
-        if !street.isEmpty {
-            result.append(street)
-        }
-        let cityLine = "\(address.postalCode) \(address.city)".trimmingCharacters(in: .whitespaces)
-        if !cityLine.isEmpty {
-            result.append(cityLine)
-        }
-        if address.countryCode.uppercased() != "CH" && !address.countryCode.isEmpty {
-            result.append(address.countryCode)
-        }
-        return result
-    }
 }

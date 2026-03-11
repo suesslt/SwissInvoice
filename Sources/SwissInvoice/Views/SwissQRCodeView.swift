@@ -119,37 +119,39 @@ public struct SwissQRCodeView: View {
     }
 }
 
-#Preview {
-    SwissQRCodeView(
-        invoice: SwissInvoice(
-            creditor: Address(
-                name: "Robert Schneider AG",
-                addressAddition: "",
-                street: "Rue du Lac",
-                houseNumber: "1268",
-                postalCode: "2501",
-                city: "Biel",
-                countryCode: "CH"
+struct SwissQRCodeView_Previews: PreviewProvider {
+    static var previews: some View {
+        SwissQRCodeView(
+            invoice: SwissInvoice(
+                creditor: Address(
+                    companyName: "Robert Schneider AG",
+                    street: "Rue du Lac",
+                    houseNumber: "1268",
+                    postalCode: "2501",
+                    city: "Biel",
+                    countryCode: "CH"
+                ),
+                iban: "CH4431999123000889012",
+                currency: .chf,
+                debtor: Address(
+                    firstName: "Pia-Maria",
+                    lastName: "Rutschmann-Schnyder",
+                    addressAddition2: "c/o Mark Heinz",
+                    street: "Grosse Marktgasse",
+                    houseNumber: "28",
+                    postalCode: "9400",
+                    city: "Rorschach",
+                    countryCode: "CH"
+                ),
+                reference: "210000000003139471430009017",
+                lineItems: [
+                    InvoiceLineItem(
+                        description: "Beratung",
+                        amount: Money(amount: Decimal(string: "199.95")!, currency: .chf)
+                    )
+                ]
             ),
-            iban: "CH4431999123000889012",
-            currency: .chf,
-            debtor: Address(
-                name: "Pia-Maria Rutschmann-Schnyder",
-                addressAddition: "c/o Mark Heinz",
-                street: "Grosse Marktgasse",
-                houseNumber: "28",
-                postalCode: "9400",
-                city: "Rorschach",
-                countryCode: "CH"
-            ),
-            reference: "210000000003139471430009017",
-            lineItems: [
-                InvoiceLineItem(
-                    description: "Beratung",
-                    amount: Money(amount: Decimal(string: "199.95")!, currency: .chf)
-                )
-            ]
-        ),
-        size: 300
-    )
+            size: 300
+        )
+    }
 }
