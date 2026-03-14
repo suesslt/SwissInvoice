@@ -112,6 +112,22 @@ public struct SwissInvoice: Sendable {
         lineItems.filter { $0.lineItemType == .vat }
     }
 
+    /// VAT amounts grouped by rate, returned as summarized line items sorted by rate ascending.
+    public var groupedVatItems: [InvoiceLineItem] {
+        let groups = Dictionary(grouping: vatItems) { $0.vatRate ?? 0 }
+        return groups
+            .sorted { $0.key < $1.key }
+            .map { rate, items in
+                let total = items.reduce(Money.zero(currency)) { $0 + $1.amount }
+                return InvoiceLineItem(
+                    lineItemType: .vat,
+                    description: items.first?.description ?? "",
+                    vatRate: rate,
+                    amount: total
+                )
+            }
+    }
+
     public func pdfData() -> Data {
         InvoicePDFRenderer(fontName: fontName, fontSize: fontSize).render(invoice: self)
     }

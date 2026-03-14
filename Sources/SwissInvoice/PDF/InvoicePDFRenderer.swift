@@ -287,7 +287,7 @@ public class InvoicePDFRenderer: PDFRenderer {
                 y: yPosition + result,
                 fontType: .standardBold
             )
-            for item in invoice.vatItems {
+            for item in invoice.groupedVatItems {
                 _ = drawText(
                     context: ctx,
                     text: strings.vatPrefix + " " + item.vatRate!.formatted() + "%",
