@@ -5,6 +5,7 @@ import Foundation
 public struct Address: Codable, Hashable, Sendable {
     public let companyName: String
     public let attentionTo: String
+    public let title: String
     public let firstName: String
     public let lastName: String
     public let addressAddition1: String
@@ -19,6 +20,7 @@ public struct Address: Codable, Hashable, Sendable {
     public init(
         companyName: String = "",
         attentionTo: String = "",
+        title: String = "",
         firstName: String = "",
         lastName: String = "",
         addressAddition1: String = "",
@@ -32,6 +34,7 @@ public struct Address: Codable, Hashable, Sendable {
     ) {
         self.companyName = companyName
         self.attentionTo = attentionTo
+        self.title = title
         self.firstName = firstName
         self.lastName = lastName
         self.addressAddition1 = addressAddition1
@@ -57,6 +60,7 @@ public struct Address: Codable, Hashable, Sendable {
         var lines: [String] = []
         if !companyName.isEmpty { lines.append(companyName) }
         if !attentionTo.isEmpty { lines.append(attentionTo) }
+        if !title.isEmpty { lines.append(title) }
         let nameLine = [firstName, lastName].filter { !$0.isEmpty }.joined(separator: " ")
         if !nameLine.isEmpty { lines.append(nameLine) }
         if !addressAddition1.isEmpty { lines.append(addressAddition1) }
