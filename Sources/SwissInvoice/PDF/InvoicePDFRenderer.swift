@@ -76,6 +76,18 @@ private enum PDFMasse {
 /// Swiss locale used for formatting monetary amounts.
 private let swissLocale = Locale(identifier: "de_CH")
 
+/// Formats a Money amount with '.' as decimal separator and ' ' (space) as thousands separator,
+/// as required by the SIX QR Bill specification for the payment slip.
+private func formattedAmountForSlip(_ money: Money) -> String {
+    let formatter = NumberFormatter()
+    formatter.numberStyle = .decimal
+    formatter.decimalSeparator = "."
+    formatter.groupingSeparator = " "
+    formatter.minimumFractionDigits = money.currency.decimalPlaces
+    formatter.maximumFractionDigits = money.currency.decimalPlaces
+    return formatter.string(from: money.amount as NSDecimalNumber) ?? "0.00"
+}
+
 /// Renders a complete A4 invoice PDF with Swiss QR Bill payment part and receipt.
 public class InvoicePDFRenderer: PDFRenderer {
 
@@ -403,13 +415,13 @@ public class InvoicePDFRenderer: PDFRenderer {
             y: currAmtY,
             fontType: .headerPayment
         )
-        _ = drawText(context: ctx, text: invoice.amount.currency.rawValue, x: leftColX, y: currAmtY, fontType: .amountPayment)
+        _ = drawText(context: ctx, text: invoice.amount.currency.rawValue, x: leftColX, y: currAmtY, fontType: .textPayment)
         _ = drawText(
             context: ctx,
-            text: invoice.amount.formattedAmount(locale: swissLocale),
+            text: formattedAmountForSlip(invoice.amount),
             x: leftColX + 30 * PDFMasse.ptPerMm,
             y: currAmtY,
-            fontType: .amountPayment
+            fontType: .textPayment
         )
     }
 
@@ -464,14 +476,14 @@ public class InvoicePDFRenderer: PDFRenderer {
             text: invoice.amount.currency.rawValue,
             x: leftX,
             y: valueY,
-            fontType: .amountReceiver
+            fontType: .textReceiver
         )
         _ = drawText(
             context: ctx,
-            text: invoice.amount.formattedAmount(locale: swissLocale),
+            text: formattedAmountForSlip(invoice.amount),
             x: leftX + 18 * PDFMasse.ptPerMm,
             y: valueY,
-            fontType: .amountReceiver
+            fontType: .textReceiver
         )
 
         // "Annahmestelle" (acceptance point) — bottom right of receipt
